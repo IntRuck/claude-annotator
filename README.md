@@ -1,4 +1,4 @@
-# Claude Annotator
+# Auto Annotator
 
 A local dashboard that auto-annotates images for object detection, with a box editor for manual fixes. Labels are saved as YOLO `.txt`.
 
