@@ -1,8 +1,11 @@
-/** Route wrapper only. The project list comes with the `projects` feature (slice 2). */
+import { ProjectList } from '@/features/projects';
+import './pages.css';
+
 export default function ProjectsPage() {
   return (
-    <main>
+    <main className="page">
       <h1>Claude Annotator</h1>
+      <ProjectList />
     </main>
   );
 }

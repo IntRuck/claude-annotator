@@ -1,0 +1,60 @@
+from annotator.classes.repository import ClassNameTakenError, ClassRepository
+from annotator.classes.schemas import ClassCreate, ClassOut, ClassUpdate
+from annotator.common.problem import ApiError
+from annotator.common.text import clean_class_name, one_line
+from annotator.project.service import ProjectService
+
+
+def _name_taken(name: str) -> ApiError:
+    return ApiError(409, "CLASS_NAME_TAKEN", f'A class called "{name}" already exists in this project.')
+
+
+def _clean_required_name(raw: str) -> str:
+    name = clean_class_name(raw)
+    if not name:
+        raise ApiError(400, "CLASS_NAME_REQUIRED", "Give the class a name.")
+    return name
+
+
+class ClassService:
+    """SKU list of a project. New classes go at the end and an index never changes, so YOLO labels stay valid."""
+
+    def __init__(self, repo: ClassRepository, projects: ProjectService):
+        self.repo = repo
+        self.projects = projects
+
+    def list_classes(self, project_id: int) -> list[ClassOut]:
+        self.projects.get_project(project_id)
+        return [ClassOut.model_validate(c) for c in self.repo.list_for_project(project_id)]
+
+    def add_class(self, project_id: int, body: ClassCreate) -> ClassOut:
+        self.projects.get_project(project_id)
+        name = _clean_required_name(body.name)
+        if self.repo.find_by_name(project_id, name):
+            raise _name_taken(name)
+        try:
+            row = self.repo.add(project_id, name, one_line(body.detector_prompt), one_line(body.description))
+        except ClassNameTakenError:
+            raise _name_taken(name) from None
+        return ClassOut.model_validate(row)
+
+    def update_class(self, project_id: int, class_index: int, body: ClassUpdate) -> ClassOut:
+        row = self.repo.get(project_id, class_index)
+        if row is None:
+            self.projects.get_project(project_id)
+            raise ApiError(404, "CLASS_NOT_FOUND", f"Class {class_index} doesn't exist in this project.")
+        if body.name is not None:
+            name = _clean_required_name(body.name)
+            clash = self.repo.find_by_name(project_id, name)
+            if clash is not None and clash.class_index != class_index:
+                raise _name_taken(name)
+            row.name = name
+        if body.detector_prompt is not None:
+            row.detector_prompt = one_line(body.detector_prompt)
+        if body.description is not None:
+            row.description = one_line(body.description)
+        try:
+            row = self.repo.save(row)
+        except ClassNameTakenError:
+            raise _name_taken(row.name) from None
+        return ClassOut.model_validate(row)

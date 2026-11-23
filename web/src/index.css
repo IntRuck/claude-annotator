@@ -1,0 +1,18 @@
+/* Colours and base styles carried over from today's index.html. */
+:root {
+  --bg: #f6f7f9; --panel: #ffffff; --line: #e3e6ea; --text: #1d2128; --muted: #6b7280; --soft: #f1f3f5;
+  --accent: #d97757; --accent-soft: #fbeee8; --ok: #16a34a; --ok-soft: #e8f6ec; --bad: #dc2626; --bad-soft: #fdecec;
+  --stage: #2a2d33;
+}
+* { box-sizing: border-box; }
+body { margin: 0; font: 13px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; background: var(--bg); color: var(--text); }
+button, select, input, textarea { font: inherit; color: var(--text); background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; }
+button { cursor: pointer; }
+button:hover { border-color: #c9ced6; background: var(--soft); }
+button:disabled { opacity: .45; cursor: not-allowed; }
+button.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+button.primary:hover { filter: brightness(.95); }
+input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent-soft); border-color: var(--accent); }
+a { color: inherit; }
+.muted { color: var(--muted); }
+.dot { width: 10px; height: 10px; border-radius: 50%; flex: none; display: inline-block; }

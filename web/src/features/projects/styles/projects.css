@@ -1,0 +1,7 @@
+.projects { max-width: 640px; }
+.projects-new { display: flex; gap: 8px; margin: 12px 0; }
+.projects-new input { flex: 1; }
+.projects-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 6px; }
+.projects-list a { display: block; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; text-decoration: none; }
+.projects-list a:hover { border-color: var(--accent); }
+.projects-name { font-weight: 600; }

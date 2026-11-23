@@ -1,0 +1,9 @@
+.ui-loading { color: var(--muted); padding: 12px; }
+.ui-error { background: var(--bad-soft); color: var(--bad); border-radius: 8px; padding: 8px 12px; margin: 8px 0; }
+.ui-empty { color: var(--muted); font-size: 12px; padding: 10px 8px; }
+
+.ui-modal { position: fixed; inset: 0; background: #1d212899; display: flex; align-items: center; justify-content: center; z-index: 20; }
+.ui-modal-body { background: var(--panel); border-radius: 14px; width: min(560px, 94vw); max-height: 92vh; overflow: auto; padding: 20px 22px; box-shadow: 0 10px 40px #0004; }
+.ui-modal-body.wide { width: min(1000px, 94vw); }
+.ui-modal-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.ui-modal-head h2 { margin: 0; font-size: 18px; flex: 1; }

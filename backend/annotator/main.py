@@ -2,8 +2,10 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from annotator.classes.router import router as classes_router
 from annotator.common.problem import install_problem_handlers
 from annotator.config.settings import Settings, get_settings
+from annotator.project.router import router as project_router
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -22,4 +24,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     def health():
         return {"status": "ok"}
 
+    app.include_router(project_router)
+    app.include_router(classes_router)
     return app
