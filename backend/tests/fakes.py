@@ -85,6 +85,10 @@ class FakeImageRepository:
     def find_by_names(self, project_id: int, names: list[str]) -> list[Image]:
         return [r for r in self._of(project_id) if r.file_name in names]
 
+    def save(self, row: Image) -> Image:
+        row.updated_at = NOW
+        return row
+
     def add(self, project_id: int, *, file_name, stem, storage_path, thumb_path, width, height) -> Image:
         row = Image(id=len(self.rows) + 1, project_id=project_id, file_name=file_name, stem=stem,
                     storage_path=storage_path, thumb_path=thumb_path, width=width, height=height,
@@ -127,3 +131,19 @@ class FakeStorage:
         self._check()
         for p in paths:
             self.objects.pop((bucket, p), None)
+
+
+class FakeLabelRepository:
+    """Boxes per image as plain dicts. Keeps the image's box_count in step, like the database trigger does."""
+
+    def __init__(self, images: FakeImageRepository):
+        self.images = images
+        self.boxes: dict[int, list[dict]] = {}
+
+    def list_for_image(self, image_id: int) -> list[dict]:
+        return list(self.boxes.get(image_id, []))
+
+    def replace(self, project_id: int, image_id: int, boxes: list[dict], source: str):
+        self.boxes[image_id] = [{**b, "source": source} for b in boxes]
+        self.images.get(image_id).box_count = len(boxes)
+        return self.boxes[image_id]

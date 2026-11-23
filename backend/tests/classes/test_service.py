@@ -100,3 +100,35 @@ def test_unknown_index_is_404(service):
 
 def test_listing_classes_of_a_missing_project_is_404(service):
     assert error_of(lambda: service.list_classes(42)) == (404, "PROJECT_NOT_FOUND")
+
+
+# ---------- import helpers ----------
+def test_import_classes_adds_the_whole_list_in_order_when_the_project_has_none(service):
+    created = service.import_classes(1, [("sardine", "red tin", "Short red tin"), ("spray bottle", "", "")])
+    assert created == ["sardine", "spray_bottle"]
+    assert [(c.index, c.name, c.detector_prompt) for c in service.list_classes(1)] == [
+        (0, "sardine", "red tin"), (1, "spray_bottle", "")]
+
+
+def test_import_classes_keeps_existing_classes(service):
+    add(service, "can")
+    assert service.import_classes(1, [("other", "", "")]) == []
+    assert [c.name for c in service.list_classes(1)] == ["can"]
+
+
+def test_import_classes_never_shifts_an_index_on_a_repeated_or_blank_name(service):
+    created = service.import_classes(1, [("can", "", ""), ("CAN", "", ""), ("", "", ""), ("jar", "", "")])
+    assert created == ["can", "CAN_1", "class_2", "jar"]
+    assert [c.index for c in service.list_classes(1)] == [0, 1, 2, 3]
+
+
+def test_ensure_indexes_adds_placeholder_classes_up_to_the_highest_index(service):
+    add(service, "can")
+    assert service.ensure_indexes(1, 3) == ["class_1", "class_2", "class_3"]
+    assert service.ensure_indexes(1, 2) == []
+    assert [c.name for c in service.list_classes(1)] == ["can", "class_1", "class_2", "class_3"]
+
+
+def test_ensure_indexes_picks_a_free_placeholder_name(service):
+    add(service, "class_1")
+    assert service.ensure_indexes(1, 1) == ["class_1_1"]

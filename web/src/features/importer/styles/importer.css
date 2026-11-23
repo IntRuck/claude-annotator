@@ -1,0 +1,5 @@
+.import-tips { color: var(--muted); font-size: 12.5px; line-height: 1.55; }
+.import-picker { display: block; text-align: center; background: var(--accent); color: #fff; border-radius: 8px; padding: 9px; font-weight: 600; cursor: pointer; margin: 12px 0; }
+.import-picker:hover { filter: brightness(.95); }
+.import-picker input { display: none; }
+.import-result p { margin: 4px 0; }

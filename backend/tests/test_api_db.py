@@ -1,9 +1,16 @@
-"""Whole stack against real Postgres: router -> service -> repository -> Flyway schema -> JSON."""
+"""Whole stack against real Postgres: router -> service -> repository -> Flyway schema -> JSON.
+Storage is faked (it has its own check against the real local Storage)."""
+import io
+import json
+
 import pytest
 from fastapi.testclient import TestClient
+from PIL import Image
 
 from annotator.db.session import get_session
 from annotator.main import create_app
+from annotator.storage.dependencies import get_storage
+from tests.fakes import FakeStorage
 
 pytestmark = pytest.mark.db
 
@@ -17,6 +24,7 @@ def client(db_session):
         db_session.flush()
 
     app.dependency_overrides[get_session] = session_in_test_transaction
+    app.dependency_overrides[get_storage] = FakeStorage
     return TestClient(app)
 
 
@@ -46,3 +54,28 @@ def test_rename_to_a_taken_name_is_409_and_leaves_the_class_unchanged(client):
 
     assert (r.status_code, r.json()["code"]) == (409, "CLASS_NAME_TAKEN")
     assert [c["name"] for c in client.get(f"/api/projects/{pid}/classes").json()] == ["can", "jar"]
+
+
+def _jpg():
+    buf = io.BytesIO()
+    Image.new("RGB", (100, 50)).save(buf, format="JPEG")
+    return buf.getvalue()
+
+
+def test_import_against_real_postgres_creates_classes_boxes_and_counts(client):
+    pid = client.post("/api/projects", json={"name": "Imported"}).json()["id"]
+    files = [
+        ("files", ("ds/images/a.jpg", _jpg(), "image/jpeg")),
+        ("files", ("ds/images/b.jpg", _jpg(), "image/jpeg")),
+        ("files", ("ds/labels/a.txt", b"0 0.5 0.5 0.2 0.2\n2 0.3 0.3 0.1 0.1\n", "text/plain")),
+        ("files", ("ds/labels/_annot_state.json", json.dumps({"b.jpg": {"status": "error", "note": "boom", "flag": True, "flag_reason": "unsure"}}).encode(), "application/json")),
+        ("files", ("ds/data.yaml", b"names: [can]\n", "text/plain")),
+    ]
+    result = client.post(f"/api/projects/{pid}/import", files=files).json()
+    assert (result["added"], result["labelled"], result["boxes"]) == (2, 1, 2)
+    assert (result["classesCreated"], result["placeholderClasses"]) == (["can"], ["class_1", "class_2"])
+
+    images = {i["fileName"]: i for i in client.get(f"/api/projects/{pid}/images").json()["items"]}
+    assert (images["a.jpg"]["status"], images["a.jpg"]["boxCount"], images["a.jpg"]["note"]) == ("auto", 2, "imported")
+    assert (images["b.jpg"]["status"], images["b.jpg"]["flagged"], images["b.jpg"]["flagReason"]) == ("error", True, "unsure")
+    assert [c["name"] for c in client.get(f"/api/projects/{pid}/classes").json()] == ["can", "class_1", "class_2"]

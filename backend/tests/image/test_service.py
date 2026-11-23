@@ -133,3 +133,15 @@ def test_thumb_and_file_links_are_signed_storage_urls(service, mixed, repo):
     row = repo.get(mixed["a.jpg"])
     assert service.thumb_url(row.id) == f"http://storage.test/images/{row.thumb_path}?expires=3600"
     assert service.file_url(row.id) == f"http://storage.test/images/{row.storage_path}?expires=3600"
+
+
+# ---------- status and flag ----------
+def test_update_state_changes_only_what_is_given(service, mixed, repo):
+    out = service.update_state(mixed["a.jpg"], status="reviewed", note="checked")
+    assert (out.status, out.note, out.flagged) == ("reviewed", "checked", False)
+    out = service.update_state(mixed["a.jpg"], flagged=True, flag_reason="unsure", flag_note="left can")
+    assert (out.status, out.flagged, out.flag_reason, out.flag_note) == ("reviewed", True, "unsure", "left can")
+
+
+def test_update_state_refuses_an_unknown_status(service, mixed):
+    assert error_of(lambda: service.update_state(mixed["a.jpg"], status="done")) == (400, "UNKNOWN_STATUS")

@@ -32,6 +32,13 @@ class ImageRepository:
         stmt = select(Image).where(Image.project_id == project_id, Image.file_name.in_(names))
         return list(self.session.scalars(stmt.order_by(Image.file_name)))
 
+    def save(self, row: Image) -> Image:
+        """Write changes to an image row and bump updated_at (used for save-conflict checks later)."""
+        row.updated_at = func.now()
+        self.session.flush()
+        self.session.refresh(row)
+        return row
+
     def add(self, project_id: int, *, file_name: str, stem: str, storage_path: str, thumb_path: str,
             width: int, height: int) -> Image:
         row = Image(project_id=project_id, file_name=file_name, stem=stem, storage_path=storage_path,

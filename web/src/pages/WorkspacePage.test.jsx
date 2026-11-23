@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '@/test/renderWithProviders';
@@ -48,10 +48,33 @@ describe('WorkspacePage', () => {
     expect(screen.getByRole('dialog', { name: 'SKUs to detect' })).toBeInTheDocument();
   });
 
+  it('opens the import dialog from the top bar', async () => {
+    renderPage();
+    await userEvent.click(await screen.findByRole('button', { name: 'Import dataset' }));
+    expect(screen.getByRole('dialog', { name: 'Import a dataset' })).toBeInTheDocument();
+  });
+
   it('opens the SKU manager straight away when the project has no classes yet', async () => {
     listClasses.mockResolvedValue([]);
     renderPage();
     expect(await screen.findByRole('dialog', { name: 'SKUs to detect' })).toBeInTheDocument();
+  });
+
+  it('the first-time SKU manager can be closed, like today', async () => {
+    listClasses.mockResolvedValue([]);
+    renderPage();
+    const dialog = await screen.findByRole('dialog', { name: 'SKUs to detect' });
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Close' }));
+    expect(screen.queryByRole('dialog', { name: 'SKUs to detect' })).not.toBeInTheDocument();
+  });
+
+  it('the first-time SKU manager does not cover the import dialog', async () => {
+    listClasses.mockResolvedValue([]);
+    renderPage();
+    await screen.findByRole('dialog', { name: 'SKUs to detect' });
+    await userEvent.click(screen.getByRole('button', { name: 'Import dataset' }));
+    expect(screen.getByRole('dialog', { name: 'Import a dataset' })).toBeInTheDocument();
+    expect(screen.queryByRole('dialog', { name: 'SKUs to detect' })).not.toBeInTheDocument();
   });
 
   it('opens the first image once the list loads and shows it in the middle', async () => {

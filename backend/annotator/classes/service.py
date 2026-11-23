@@ -58,3 +58,36 @@ class ClassService:
         except ClassNameTakenError:
             raise _name_taken(row.name) from None
         return ClassOut.model_validate(row)
+
+    # ---------- import ----------
+    def import_classes(self, project_id: int, entries: list[tuple[str, str, str]]) -> list[str]:
+        """Add a whole class list (name, detector prompt, description) to a project that has no classes yet.
+        Every line gets the next index, even a repeated or blank name, so imported label IDs stay right.
+        Returns the names created (empty when the project already had classes)."""
+        self.projects.get_project(project_id)
+        if self.repo.list_for_project(project_id):
+            return []
+        created = []
+        for index, (raw_name, prompt, description) in enumerate(entries):
+            name = self._free_name(project_id, clean_class_name(raw_name) or f"class_{index}", index)
+            self.repo.add(project_id, name, one_line(prompt), one_line(description))
+            created.append(name)
+        return created
+
+    def ensure_indexes(self, project_id: int, max_index: int) -> list[str]:
+        """Make sure class IDs 0..max_index exist, adding placeholders (class_<n>) that can be renamed later."""
+        existing = self.repo.list_for_project(project_id)
+        start = existing[-1].class_index + 1 if existing else 0
+        created = []
+        for index in range(start, max_index + 1):
+            name = self._free_name(project_id, f"class_{index}", index)
+            self.repo.add(project_id, name, "", "")
+            created.append(name)
+        return created
+
+    def _free_name(self, project_id: int, base: str, index: int) -> str:
+        candidate, n = base, 1
+        while self.repo.find_by_name(project_id, candidate):
+            candidate = f"{base}_{index}" if n == 1 else f"{base}_{index}_{n}"
+            n += 1
+        return candidate

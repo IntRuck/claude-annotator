@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from pathlib import PurePath
 
 from annotator.common.problem import ApiError
+from annotator.image.models import STATUSES
 from annotator.image.repository import ImageRepository
 from annotator.image.schemas import FILTERS, ImageList, ImageOut, SkippedFile, UploadResult
 from annotator.image.thumbnails import IMAGE_EXTENSIONS, UnsupportedImageError, allowed_file_name, read_image
@@ -76,6 +77,20 @@ class ImageService:
 
     def get_image(self, image_id: int) -> ImageOut:
         return ImageOut.model_validate(self._row(image_id))
+
+    # ---------- status and flag ----------
+    def update_state(self, image_id: int, *, status: str | None = None, note: str | None = None,
+                     flagged: bool | None = None, flag_reason: str | None = None,
+                     flag_note: str | None = None) -> ImageOut:
+        """Change only the fields given. The flag is separate from the status."""
+        if status is not None and status not in STATUSES:
+            raise ApiError(400, "UNKNOWN_STATUS", f"Unknown status '{status}'. Use one of: {', '.join(STATUSES)}.")
+        row = self._row(image_id)
+        for field, value in (("status", status), ("note", note), ("flagged", flagged),
+                             ("flag_reason", flag_reason), ("flag_note", flag_note)):
+            if value is not None:
+                setattr(row, field, value)
+        return ImageOut.model_validate(self.repo.save(row))
 
     def thumb_url(self, image_id: int) -> str:
         return self._signed(self._row(image_id).thumb_path)
