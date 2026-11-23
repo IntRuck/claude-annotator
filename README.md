@@ -66,7 +66,7 @@ VLMs (Claude, Gemini, Ollama) understand what they see and follow instructions, 
 python app.py
 ```
 Open http://127.0.0.1:5050. The terminal shows which backends are ready, for example:
-`Backends: claude=yes  ollama=running  grounding_dino=yes  yolo_world=not installed`
+`Backends: claude=yes  gemini=key found  ollama=running  grounding_dino=yes  yolo_world=not installed`
 
 ### Start page
 1. **Images folder**: paste the path or click **Browse…** and click into folders, then **Use this folder**. A preview shows how many images it found, whether a `labels` folder with existing YOLO labels is there, and whether a class list exists.
@@ -77,6 +77,15 @@ Open http://127.0.0.1:5050. The terminal shows which backends are ready, for exa
 
 Recent datasets are listed on the start page. The 📁 button at the top left reopens it to switch datasets.
 You can still skip the start page: `python app.py --images D:\data\shelf\images --classes classes.txt`.
+
+| Flag | Default | Meaning |
+|---|---|---|
+| `--images` | none (pick on the start page) | Folder with images |
+| `--labels` | `<images>/../labels` | Folder for the YOLO `.txt` labels |
+| `--classes` | `classes.txt` next to the images folder | Class list, one SKU per line |
+| `--port` | `5050` | Port. The server only listens on 127.0.0.1 |
+
+On Windows run it with `python`, not `python3` (`python3` may be the Microsoft Store stub).
 
 ## Using it
 
@@ -161,6 +170,7 @@ Gray = unlabeled · Blue = auto-labeled · Yellow = edited by you · Green = app
 - Temp images are kept in `labels/_claude_tmp/`. Delete that folder anytime.
 - Only images directly inside the images folder are listed (no subfolders).
 - `CLAUDE_BIN` env var lets you point to a specific `claude` executable if it isn't on PATH.
+- Environment variables: `GEMINI_API_KEY` (or `GOOGLE_API_KEY`) for Gemini, `CLAUDE_BIN` as above. `.env` is read at start-up but never overrides a variable already set in your shell.
 
 ## Files
 
@@ -169,5 +179,7 @@ Gray = unlabeled · Blue = auto-labeled · Yellow = edited by you · Green = app
 | `app.py` | Web server, project storage (labels, classes, status), background worker, health check, exports |
 | `backends.py` | The labeling engines (Claude, Gemini, Ollama, Grounding DINO, YOLO-World) and the prompt/answer parsing for VLMs |
 | `.env.example` | Template for your Gemini key. Copy to `.env` |
+| `classes.example.txt` | Example class list (`name \| detector prompt \| description`). Copy to `classes.txt` |
+| `requirements.txt` | Python packages: `flask`, `pillow`, optional detector packages commented out |
 | `index.html` | The whole web page: start page, canvas editor, panels, thumbnails |
 | `recent.json` | Created on first use: your recent datasets for the start page |
