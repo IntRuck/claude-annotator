@@ -80,3 +80,26 @@ def test_cors_allows_only_the_web_app_origin():
     bad = c.options("/api/health", headers={"Origin": "http://evil.example", "Access-Control-Request-Method": "GET"})
     assert ok.headers.get("access-control-allow-origin") == "http://localhost:5173"
     assert "access-control-allow-origin" not in bad.headers
+
+
+def test_startup_creates_the_storage_buckets():
+    from annotator.storage.dependencies import get_storage
+    from tests.fakes import FakeStorage
+
+    app, storage = create_app(), FakeStorage()
+    app.dependency_overrides[get_storage] = lambda: storage
+    with TestClient(app):
+        pass
+    assert storage.buckets == ["images", "exports"]
+
+
+def test_startup_still_works_when_storage_is_down():
+    from annotator.storage.dependencies import get_storage
+    from annotator.storage.storage_service import StorageError
+    from tests.fakes import FakeStorage
+
+    app, storage = create_app(), FakeStorage()
+    storage.fail_with = StorageError(0, "connection refused")
+    app.dependency_overrides[get_storage] = lambda: storage
+    with TestClient(app) as c:
+        assert c.get("/api/health").status_code == 200

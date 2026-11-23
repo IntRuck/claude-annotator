@@ -5,7 +5,9 @@ import { addClass, listClasses, updateClass } from './classesApi';
 vi.mock('@/lib/apiClient', () => ({ apiFetch: vi.fn() }));
 
 describe('classesApi', () => {
-  beforeEach(() => apiFetch.mockReset().mockResolvedValue({}));
+  beforeEach(() => {
+    apiFetch.mockReset().mockResolvedValue({});
+  });
 
   it('lists the classes of a project', async () => {
     await listClasses(3);

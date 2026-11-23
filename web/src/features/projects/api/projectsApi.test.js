@@ -5,7 +5,9 @@ import { createProject, getProject, listProjects } from './projectsApi';
 vi.mock('@/lib/apiClient', () => ({ apiFetch: vi.fn() }));
 
 describe('projectsApi', () => {
-  beforeEach(() => apiFetch.mockReset().mockResolvedValue([]));
+  beforeEach(() => {
+    apiFetch.mockReset().mockResolvedValue([]);
+  });
 
   it('lists projects', async () => {
     await listProjects();
