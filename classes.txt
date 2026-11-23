@@ -1,0 +1,3 @@
+thermos_flask
+spray_bottle
+canned_food

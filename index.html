@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Claude Annotator</title>
+<style>
+  :root { --bg:#16181d; --panel:#1f232a; --line:#2e333c; --text:#e6e8eb; --muted:#8b93a1; --accent:#d97757; }
+  * { box-sizing: border-box; }
+  body { margin:0; font:13px/1.4 system-ui, sans-serif; background:var(--bg); color:var(--text); height:100vh; display:flex; flex-direction:column; }
+  header { display:flex; gap:8px; align-items:center; padding:8px 10px; background:var(--panel); border-bottom:1px solid var(--line); flex-wrap:wrap; }
+  header .title { font-weight:600; margin-right:8px; }
+  button, select, input { font:inherit; color:var(--text); background:#2a2f38; border:1px solid var(--line); border-radius:6px; padding:5px 9px; }
+  button { cursor:pointer; }
+  button:hover { border-color:var(--accent); }
+  button.primary { background:var(--accent); border-color:var(--accent); color:#1b1b1b; font-weight:600; }
+  button.danger:hover { border-color:#e5484d; }
+  .sep { width:1px; height:22px; background:var(--line); margin:0 4px; }
+  #status { color:var(--muted); margin-left:auto; max-width:420px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  main { flex:1; display:grid; grid-template-columns: 250px 1fr 290px; min-height:0; }
+  aside { background:var(--panel); border-right:1px solid var(--line); display:flex; flex-direction:column; min-height:0; }
+  aside.right { border-right:none; border-left:1px solid var(--line); overflow:auto; padding:10px; }
+  .filters { padding:8px; display:flex; gap:6px; border-bottom:1px solid var(--line); }
+  .filters select { flex:1; }
+  #list { overflow:auto; flex:1; }
+  .item { padding:5px 10px; display:flex; gap:8px; align-items:center; cursor:pointer; border-bottom:1px solid #262a32; }
+  .item:hover { background:#262b33; }
+  .item.active { background:#33302c; }
+  .dot { width:9px; height:9px; border-radius:50%; flex:none; }
+  .item .name { flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .item .n { color:var(--muted); font-size:12px; }
+  .s-none{background:#555} .s-auto{background:#3b82f6} .s-edited{background:#eab308} .s-reviewed{background:#22c55e} .s-error{background:#e5484d}
+  #stage { position:relative; overflow:hidden; background:#0f1115; }
+  #cv { position:absolute; inset:0; width:100%; height:100%; cursor:crosshair; }
+  #hint { position:absolute; left:10px; bottom:8px; color:var(--muted); font-size:12px; pointer-events:none; background:#0f1115cc; padding:4px 8px; border-radius:6px; }
+  #namesToggle { position:absolute; right:10px; top:8px; background:#0f1115cc; padding:4px 8px; border-radius:6px; color:var(--text); }
+  #imgname { position:absolute; left:10px; top:8px; font-size:12px; background:#0f1115cc; padding:4px 8px; border-radius:6px; }
+  h3 { margin:12px 0 6px; font-size:12px; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); }
+  h3:first-child { margin-top:0; }
+  .cls { display:flex; align-items:center; gap:8px; padding:4px 6px; border-radius:6px; cursor:pointer; }
+  .cls:hover { background:#2a2f38; }
+  .cls.cur { outline:1px solid var(--accent); }
+  .sw { width:12px; height:12px; border-radius:3px; flex:none; }
+  .cls .k { color:var(--muted); font-size:11px; width:14px; }
+  .row { display:flex; gap:6px; margin-top:6px; }
+  .row input { flex:1; min-width:0; }
+  .box { display:flex; gap:6px; align-items:center; padding:3px 4px; border-radius:6px; }
+  .box.sel { background:#33302c; }
+  .box select { flex:1; min-width:0; padding:3px 5px; }
+  .box button { padding:2px 7px; }
+  .note { color:#f0b429; font-size:12px; margin-top:6px; }
+  #log { font:11px/1.35 ui-monospace, monospace; color:var(--muted); white-space:pre-wrap; max-height:180px; overflow:auto; background:#16181d; padding:6px; border-radius:6px; }
+  label.chk { display:flex; gap:5px; align-items:center; color:var(--muted); }
+  .modal { position:fixed; inset:0; background:#000a; display:flex; align-items:center; justify-content:center; z-index:10; }
+  .modal.hidden { display:none; }
+  .modal-body { background:var(--panel); border:1px solid var(--line); border-radius:10px; width:min(1000px, 94vw); max-height:90vh; overflow:auto; padding:16px 18px; }
+  .modal-head { display:flex; align-items:center; gap:10px; margin-bottom:6px; }
+  .modal-head h2 { margin:0; font-size:16px; flex:1; }
+  .cards { display:grid; grid-template-columns:repeat(auto-fill, minmax(140px, 1fr)); gap:8px; }
+  .card { background:#262a32; border-radius:8px; padding:8px 10px; }
+  .card .v { font-size:20px; font-weight:600; }
+  .card .l { color:var(--muted); font-size:12px; }
+  table.ht { width:100%; border-collapse:collapse; }
+  table.ht th, table.ht td { text-align:left; padding:4px 6px; border-bottom:1px solid #2a2f38; }
+  table.ht th { color:var(--muted); font-weight:500; font-size:12px; }
+  table.ht tr.click { cursor:pointer; }
+  table.ht tr.click:hover { background:#262b33; }
+  .bar { height:8px; border-radius:4px; background:var(--accent); }
+  .warn { color:#f0b429; }
+  .bad { color:#e5484d; }
+  .two { display:grid; grid-template-columns: 1fr 260px; gap:16px; }
+</style>
+</head>
+<body>
+<header>
+  <span class="title">Claude Annotator</span>
+  <select id="model" title="Claude model">
+    <option value="sonnet" selected>Sonnet</option>
+    <option value="haiku">Haiku</option>
+    <option value="opus">Opus</option>
+  </select>
+  <label class="chk" title="Draw a 0-1000 grid on the image sent to Claude"><input type="checkbox" id="grid"> grid</label>
+  <input id="extra" placeholder="Extra instructions for Claude (optional)" style="width:240px">
+  <div class="sep"></div>
+  <button class="primary" id="runUnlabeled" title="Annotate every image without labels">Annotate unlabeled</button>
+  <button id="runThis" title="Annotate the current image from scratch">Annotate this</button>
+  <button id="refineThis" title="Ask Claude to review and fix the current boxes">Refine this</button>
+  <button id="refineAuto" title="Refine every image that is auto-labeled but not reviewed">Refine all auto</button>
+  <button class="danger" id="stop">Stop</button>
+  <div class="sep"></div>
+  <label class="chk"><input type="checkbox" id="onlyReviewed"> reviewed only</label>
+  <button id="health">Health check</button>
+  <button id="expYolo">Export YOLO</button>
+  <button id="expCoco">Export COCO</button>
+  <span id="status">idle</span>
+</header>
+<main>
+  <aside>
+    <div class="filters">
+      <select id="filter">
+        <option value="all">All images</option>
+        <option value="none">Unlabeled</option>
+        <option value="auto">Auto (Claude)</option>
+        <option value="edited">Edited</option>
+        <option value="reviewed">Reviewed</option>
+        <option value="error">Errors</option>
+        <option value="custom" id="customOpt" hidden>Custom</option>
+      </select>
+    </div>
+    <div id="list"></div>
+  </aside>
+  <section id="stage">
+    <canvas id="cv"></canvas>
+    <div id="imgname"></div>
+    <label class="chk" id="namesToggle" title="Show class names on boxes (L)"><input type="checkbox" id="showNames" checked> label names</label>
+    <div id="hint">Drag: new box · Click: select · Drag corner: resize · Del: delete · 1-9: class · H: solo box · L: names · Wheel: zoom · Right-drag: pan · F: fit · Ctrl+Z/Y: undo/redo · S: save · R: reviewed + next · A/D: prev/next</div>
+  </section>
+  <aside class="right">
+    <h3>Classes <span style="text-transform:none">(new boxes use the highlighted one)</span></h3>
+    <div id="classes"></div>
+    <div class="row"><input id="newClass" placeholder="Add class"><button id="addClass">Add</button></div>
+    <h3>Boxes on this image</h3>
+    <div id="boxes"></div>
+    <div id="note" class="note"></div>
+    <div class="row">
+      <button id="undo" title="Ctrl+Z">Undo</button>
+      <button id="redo" title="Ctrl+Y or Ctrl+Shift+Z">Redo</button>
+    </div>
+    <div class="row">
+      <button id="save">Save (S)</button>
+      <button class="primary" id="review">Reviewed + next (R)</button>
+    </div>
+    <h3>Log</h3>
+    <div id="log"></div>
+  </aside>
+</main>
+
+<div id="healthModal" class="modal hidden">
+  <div class="modal-body">
+    <div class="modal-head">
+      <h2>Dataset health</h2>
+      <label class="chk">Low-count warning below <input id="lowCount" type="number" value="100" min="1" style="width:70px"> boxes</label>
+      <button id="healthRefresh">Refresh</button>
+      <button id="healthClose">Close</button>
+    </div>
+    <div id="healthBody">Loading...</div>
+  </div>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const cv = $('#cv'), ctx = cv.getContext('2d');
+let S = { classes: [], images: [], worker: {} };
+let cur = null;               // current image name
+let img = new Image();
+let boxes = [], sel = -1, curClass = 0, dirty = false, solo = false, hidden = new Set();
+let view = { scale: 1, ox: 0, oy: 0 };
+let drag = null;              // {mode, ...}
+let lastWorkerDone = -1;
+let custom = null;            // {label, set} for health drill-down filter
+let undoStack = [], redoStack = [];
+
+const color = i => `hsl(${(i * 137.508) % 360} 85% 58%)`;
+const api = (url, body) => fetch(url, body === undefined ? {} : {
+  method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+}).then(r => r.json());
+
+// ---------------- state & list ----------------
+async function refresh() {
+  S = await api('/api/state');
+  renderList(); renderClasses();
+  const w = S.worker;
+  $('#status').textContent = w.running ? `${w.message} (${w.done}/${w.total})` : w.message;
+  if (w.done !== lastWorkerDone) {
+    lastWorkerDone = w.done;
+    if (cur && !dirty) loadLabels(cur);
+    $('#log').textContent = (await api('/api/log')).join('\n');
+    $('#log').scrollTop = 1e9;
+  }
+}
+function filtered() {
+  const f = $('#filter').value;
+  if (f === 'custom' && custom) return S.images.filter(i => custom.set.has(i.name));
+  return S.images.filter(i => f === 'all' || i.status === f);
+}
+function renderList() {
+  const el = $('#list'); el.innerHTML = '';
+  for (const it of filtered()) {
+    const d = document.createElement('div');
+    d.className = 'item' + (it.name === cur ? ' active' : '');
+    d.innerHTML = `<span class="dot s-${it.status}"></span><span class="name"></span><span class="n">${it.boxes || ''}</span>`;
+    d.querySelector('.name').textContent = it.name;
+    d.title = it.note || it.status;
+    d.onclick = () => openImage(it.name);
+    el.appendChild(d);
+  }
+}
+function renderClasses() {
+  const el = $('#classes'); el.innerHTML = '';
+  S.classes.forEach((c, i) => {
+    const d = document.createElement('div');
+    d.className = 'cls' + (i === curClass ? ' cur' : '');
+    d.innerHTML = `<span class="k">${i < 9 ? i + 1 : ''}</span><span class="sw" style="background:${color(i)}"></span><span></span>`;
+    d.lastChild.textContent = `${i}: ${c}`;
+    d.onclick = () => { curClass = i; if (sel >= 0 && boxes[sel].cls !== i) { pushUndo(); boxes[sel].cls = i; markDirty(); } renderClasses(); };
+    d.ondblclick = async () => {
+      const n = prompt('Rename class (ID stays the same)', c);
+      if (n) { await api('/api/classes', { rename: i, name: n }); refresh(); }
+    };
+    el.appendChild(d);
+  });
+}
+function renderBoxes() {
+  const el = $('#boxes'); el.innerHTML = '';
+  boxes.forEach((b, i) => {
+    const d = document.createElement('div');
+    d.className = 'box' + (i === sel ? ' sel' : '');
+    const opts = S.classes.map((c, k) => `<option value="${k}" ${k === b.cls ? 'selected' : ''}>${k}: ${c.replace(/</g, '&lt;')}</option>`).join('');
+    d.innerHTML = `<span class="sw" style="background:${color(b.cls)}"></span><select>${opts}</select>
+      <button title="Show/hide">${hidden.has(i) ? '◌' : '●'}</button><button title="Delete">✕</button>`;
+    const [s, eye, del] = [d.querySelector('select'), ...d.querySelectorAll('button')];
+    s.onchange = () => { pushUndo(); b.cls = +s.value; markDirty(); };
+    eye.onclick = () => { hidden.has(i) ? hidden.delete(i) : hidden.add(i); renderBoxes(); draw(); };
+    del.onclick = () => { pushUndo(); boxes.splice(i, 1); sel = -1; hidden.clear(); markDirty(); };
+    d.onmouseenter = () => { sel = i; draw(); };
+    d.onclick = e => { if (e.target === d) { sel = i; renderBoxes(); draw(); } };
+    el.appendChild(d);
+  });
+  const it = S.images.find(i => i.name === cur);
+  $('#note').textContent = it && it.note ? it.note : '';
+}
+
+// ---------------- image & labels ----------------
+async function openImage(name) {
+  if (dirty) await save('edited');
+  cur = name; sel = -1; hidden.clear(); solo = false;
+  $('#imgname').textContent = name;
+  img = new Image();
+  img.onload = () => { fit(); draw(); };
+  img.src = '/api/image/' + encodeURIComponent(name);
+  await loadLabels(name);
+  renderList();
+}
+async function loadLabels(name) {
+  boxes = await api('/api/labels/' + encodeURIComponent(name));
+  dirty = false; resetHistory(); renderBoxes(); draw();
+}
+async function save(status) {
+  if (!cur) return;
+  await api('/api/labels/' + encodeURIComponent(cur), { boxes, status });
+  dirty = false; await refresh();
+}
+function markDirty() { dirty = true; renderBoxes(); draw(); }
+
+// ---------------- undo / redo ----------------
+const snap = () => JSON.stringify(boxes);
+function pushUndo(state = snap()) {
+  undoStack.push(state); if (undoStack.length > 200) undoStack.shift();
+  redoStack = [];
+}
+function resetHistory() { undoStack = []; redoStack = []; }
+function undo() {
+  if (!undoStack.length) return;
+  redoStack.push(snap()); boxes = JSON.parse(undoStack.pop());
+  sel = -1; hidden.clear(); markDirty();
+}
+function redo() {
+  if (!redoStack.length) return;
+  undoStack.push(snap()); boxes = JSON.parse(redoStack.pop());
+  sel = -1; hidden.clear(); markDirty();
+}
+function step(d) {
+  const list = filtered(); if (!list.length) return;
+  let i = list.findIndex(x => x.name === cur);
+  i = Math.max(0, Math.min(list.length - 1, i + d));
+  openImage(list[i].name);
+}
+
+// ---------------- canvas ----------------
+function resize() {
+  const r = cv.getBoundingClientRect();
+  cv.width = r.width * devicePixelRatio; cv.height = r.height * devicePixelRatio;
+  draw();
+}
+function fit() {
+  if (!img.naturalWidth) return;
+  const W = cv.width, H = cv.height;
+  view.scale = Math.min(W / img.naturalWidth, H / img.naturalHeight) * 0.96;
+  view.ox = (W - img.naturalWidth * view.scale) / 2;
+  view.oy = (H - img.naturalHeight * view.scale) / 2;
+}
+// normalized <-> canvas pixels
+const toC = (x, y) => [view.ox + x * img.naturalWidth * view.scale, view.oy + y * img.naturalHeight * view.scale];
+const toN = (cx, cy) => [(cx - view.ox) / (img.naturalWidth * view.scale), (cy - view.oy) / (img.naturalHeight * view.scale)];
+function evPos(e) {
+  const r = cv.getBoundingClientRect();
+  return [(e.clientX - r.left) * devicePixelRatio, (e.clientY - r.top) * devicePixelRatio];
+}
+function draw() {
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.clearRect(0, 0, cv.width, cv.height);
+  if (!img.naturalWidth) return;
+  ctx.imageSmoothingEnabled = view.scale < 2;
+  ctx.drawImage(img, view.ox, view.oy, img.naturalWidth * view.scale, img.naturalHeight * view.scale);
+  const lw = Math.max(1.5, 2 * devicePixelRatio);
+  boxes.forEach((b, i) => {
+    if (hidden.has(i)) return;
+    if (solo && sel >= 0 && i !== sel) return;
+    const [x1, y1] = toC(b.x1, b.y1), [x2, y2] = toC(b.x2, b.y2);
+    ctx.strokeStyle = color(b.cls); ctx.lineWidth = i === sel ? lw * 1.8 : lw;
+    if (i === sel) { ctx.fillStyle = color(b.cls).replace(')', ' / 0.15)'); ctx.fillRect(x1, y1, x2 - x1, y2 - y1); }
+    ctx.strokeRect(x1, y1, x2 - x1, y2 - y1);
+    if (!$('#showNames').checked) { drawHandles(i, x1, y1, x2, y2); return; }
+    const label = `${S.classes[b.cls] ?? b.cls}`;
+    ctx.font = `${11 * devicePixelRatio}px system-ui`;
+    const tw = ctx.measureText(label).width + 6 * devicePixelRatio;
+    ctx.fillStyle = color(b.cls); ctx.fillRect(x1, y1 - 15 * devicePixelRatio, tw, 15 * devicePixelRatio);
+    ctx.fillStyle = '#111'; ctx.fillText(label, x1 + 3 * devicePixelRatio, y1 - 4 * devicePixelRatio);
+    drawHandles(i, x1, y1, x2, y2);
+  });
+  if (drag && drag.mode === 'new') {
+    const [x1, y1] = toC(drag.a[0], drag.a[1]), [x2, y2] = toC(drag.b[0], drag.b[1]);
+    ctx.setLineDash([6, 4]); ctx.strokeStyle = color(curClass); ctx.lineWidth = lw;
+    ctx.strokeRect(x1, y1, x2 - x1, y2 - y1); ctx.setLineDash([]);
+  }
+}
+function drawHandles(i, x1, y1, x2, y2) {
+  if (i !== sel) return;
+  const s = 4 * devicePixelRatio;
+  ctx.fillStyle = '#fff';
+  for (const [hx, hy] of [[x1, y1], [x2, y1], [x1, y2], [x2, y2]]) ctx.fillRect(hx - s, hy - s, 2 * s, 2 * s);
+}
+function hitCorner(p) {
+  if (sel < 0) return null;
+  const b = boxes[sel], tol = 9 * devicePixelRatio;
+  const cs = { tl: [b.x1, b.y1], tr: [b.x2, b.y1], bl: [b.x1, b.y2], br: [b.x2, b.y2] };
+  for (const k in cs) { const [cx, cy] = toC(...cs[k]); if (Math.abs(cx - p[0]) < tol && Math.abs(cy - p[1]) < tol) return k; }
+  return null;
+}
+function hitBox(n) {
+  let best = -1, area = 1e9;
+  boxes.forEach((b, i) => {
+    if (hidden.has(i) || (solo && sel >= 0 && i !== sel)) return;
+    const [x1, x2] = [Math.min(b.x1, b.x2), Math.max(b.x1, b.x2)], [y1, y2] = [Math.min(b.y1, b.y2), Math.max(b.y1, b.y2)];
+    if (n[0] >= x1 && n[0] <= x2 && n[1] >= y1 && n[1] <= y2) {
+      const a = (x2 - x1) * (y2 - y1); if (i === sel) { best = i; area = -1; } else if (a < area) { best = i; area = a; }
+    }
+  });
+  return best;
+}
+cv.addEventListener('contextmenu', e => e.preventDefault());
+cv.addEventListener('mousedown', e => {
+  if (!img.naturalWidth) return;
+  const p = evPos(e), n = toN(...p);
+  if (e.button === 2 || e.button === 1) { drag = { mode: 'pan', p, ox: view.ox, oy: view.oy }; return; }
+  const corner = hitCorner(p);
+  if (corner) { drag = { mode: 'resize', corner, before: snap() }; return; }
+  const hit = hitBox(n);
+  if (hit >= 0) { sel = hit; drag = { mode: 'move', start: n, orig: { ...boxes[hit] }, before: snap() }; renderBoxes(); draw(); return; }
+  sel = -1; drag = { mode: 'new', a: n, b: n }; renderBoxes(); draw();
+});
+window.addEventListener('mousemove', e => {
+  if (!drag) return;
+  const p = evPos(e), n = toN(...p).map(v => Math.max(0, Math.min(1, v)));
+  if (drag.mode === 'pan') { view.ox = drag.ox + p[0] - drag.p[0]; view.oy = drag.oy + p[1] - drag.p[1]; }
+  else if (drag.mode === 'new') drag.b = n;
+  else if (drag.mode === 'move') {
+    const o = drag.orig, w = o.x2 - o.x1, h = o.y2 - o.y1;
+    let dx = n[0] - drag.start[0], dy = n[1] - drag.start[1];
+    dx = Math.max(-o.x1, Math.min(1 - o.x2, dx)); dy = Math.max(-o.y1, Math.min(1 - o.y2, dy));
+    Object.assign(boxes[sel], { x1: o.x1 + dx, y1: o.y1 + dy, x2: o.x1 + dx + w, y2: o.y1 + dy + h }); dirty = true;
+  } else if (drag.mode === 'resize') {
+    const b = boxes[sel];
+    if (drag.corner.includes('l')) b.x1 = n[0]; else b.x2 = n[0];
+    if (drag.corner.includes('t')) b.y1 = n[1]; else b.y2 = n[1];
+    dirty = true;
+  }
+  draw();
+});
+window.addEventListener('mouseup', () => {
+  if (!drag) return;
+  if (drag.mode === 'new') {
+    const [a, b] = [drag.a, drag.b];
+    if (Math.abs(a[0] - b[0]) > 0.004 && Math.abs(a[1] - b[1]) > 0.004) {
+      pushUndo();
+      boxes.push({ cls: curClass, x1: Math.min(a[0], b[0]), y1: Math.min(a[1], b[1]), x2: Math.max(a[0], b[0]), y2: Math.max(a[1], b[1]) });
+      sel = boxes.length - 1; dirty = true;
+    }
+  }
+  if (sel >= 0) { const b = boxes[sel]; [b.x1, b.x2] = [Math.min(b.x1, b.x2), Math.max(b.x1, b.x2)]; [b.y1, b.y2] = [Math.min(b.y1, b.y2), Math.max(b.y1, b.y2)]; }
+  if (drag.before !== undefined && drag.before !== snap()) pushUndo(drag.before);
+  drag = null; renderBoxes(); draw();
+});
+cv.addEventListener('wheel', e => {
+  e.preventDefault();
+  const p = evPos(e), k = e.deltaY < 0 ? 1.15 : 1 / 1.15;
+  view.ox = p[0] - (p[0] - view.ox) * k; view.oy = p[1] - (p[1] - view.oy) * k; view.scale *= k; draw();
+}, { passive: false });
+
+window.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+  const k = e.key.toLowerCase(), mod = e.ctrlKey || e.metaKey;
+  if (mod && k === 'z' && !e.shiftKey) { e.preventDefault(); undo(); }
+  else if (mod && (k === 'y' || (k === 'z' && e.shiftKey))) { e.preventDefault(); redo(); }
+  else if (k === 's') { e.preventDefault(); save('edited'); }
+  else if (mod) return;
+  else if (k === 'delete' || k === 'backspace') { if (sel >= 0) { pushUndo(); boxes.splice(sel, 1); sel = -1; hidden.clear(); markDirty(); } }
+  else if (k === 'r') { save('reviewed').then(() => step(1)); }
+  else if (k === 'd') step(1);
+  else if (k === 'a') step(-1);
+  else if (k === 'h') { solo = !solo; draw(); }
+  else if (k === 'f') { fit(); draw(); }
+  else if (k === 'l') { $('#showNames').checked = !$('#showNames').checked; draw(); }
+  else if (k === 'escape') { sel = -1; renderBoxes(); draw(); }
+  else if (/^[1-9]$/.test(k)) {
+    const c = +k - 1; if (c >= S.classes.length) return;
+    curClass = c; if (sel >= 0 && boxes[sel].cls !== c) { pushUndo(); boxes[sel].cls = c; markDirty(); } renderClasses();
+  }
+});
+
+// ---------------- buttons ----------------
+function runOpts(extra) { return { model: $('#model').value, grid: $('#grid').checked, extra: $('#extra').value, ...extra }; }
+async function startRun(body) {
+  if (dirty) await save('edited');
+  const r = await api('/api/run', runOpts(body));
+  if (!r.ok) alert('A job is already running. Stop it first.');
+  refresh();
+}
+$('#runUnlabeled').onclick = () => startRun({ mode: 'annotate', target: 'unlabeled' });
+$('#runThis').onclick = () => cur && startRun({ mode: 'annotate', target: [cur] });
+$('#refineThis').onclick = () => cur && startRun({ mode: 'refine', target: [cur] });
+$('#refineAuto').onclick = () => startRun({ mode: 'refine', target: 'auto' });
+$('#stop').onclick = () => api('/api/stop', {}).then(refresh);
+$('#save').onclick = () => save('edited');
+$('#review').onclick = () => save('reviewed').then(() => step(1));
+$('#filter').onchange = renderList;
+$('#undo').onclick = undo;
+$('#redo').onclick = redo;
+
+// ---------------- health check ----------------
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+function showSet(label, list) {
+  custom = { label, set: new Set(list) };
+  const o = $('#customOpt'); o.hidden = false; o.textContent = `${label} (${list.length})`;
+  $('#filter').value = 'custom'; renderList();
+  $('#healthModal').classList.add('hidden');
+  if (list.length) openImage(list[0]);
+}
+async function loadHealth() {
+  $('#healthBody').textContent = 'Loading...';
+  const h = await api('/api/health?low=' + (+$('#lowCount').value || 100));
+  const s = h.summary;
+  const st = Object.entries(s.status).map(([k, v]) => `${k}: ${v}`).join(' · ');
+  const maxBoxes = Math.max(1, ...h.classes.map(c => c.boxes));
+  const imb = s.imbalance_ratio;
+  let html = `<div class="cards">
+    <div class="card"><div class="v">${s.images}</div><div class="l">images (${s.labeled} labeled)</div></div>
+    <div class="card"><div class="v">${s.boxes}</div><div class="l">boxes · ${s.avg_boxes_per_image} per image</div></div>
+    <div class="card"><div class="v">${s.classes_with_data}/${s.classes}</div><div class="l">classes with data</div></div>
+    <div class="card"><div class="v ${imb > 10 ? 'bad' : imb > 3 ? 'warn' : ''}">${imb || '-'}×</div><div class="l">imbalance (most / fewest boxes)</div></div>
+  </div>
+  <div class="l" style="color:var(--muted);margin-top:6px">Status: ${esc(st)}</div>
+  <div class="two">
+  <div><h3>Classes (click a row to see its images)</h3>
+  <table class="ht"><tr><th>ID</th><th>Class</th><th>Boxes</th><th style="width:30%"></th><th>Images</th><th>Avg size</th><th></th></tr>`;
+  for (const c of h.classes) {
+    html += `<tr class="click" data-cls="${c.id}"><td>${c.id}</td><td><span class="sw" style="display:inline-block;background:${color(c.id)}"></span> ${esc(c.name)}</td>
+      <td>${c.boxes}</td><td><div class="bar" style="width:${100 * c.boxes / maxBoxes}%;background:${color(c.id)}"></div></td>
+      <td>${c.images}</td><td>${c.avg_area_pct}%</td><td class="${c.boxes ? 'warn' : 'bad'}">${esc(c.warn)}</td></tr>`;
+  }
+  html += `</table>
+  <h3>Issues (click to review)</h3><table class="ht">`;
+  for (const is of h.issues) {
+    html += `<tr class="${is.count ? 'click' : ''}" data-issue="${is.key}"><td>${esc(is.label)}</td>
+      <td class="${is.count ? (['errors', 'bad_class', 'duplicates'].includes(is.key) ? 'bad' : 'warn') : ''}" style="text-align:right">${is.count}</td></tr>`;
+  }
+  html += `</table></div><div><h3>Box sizes (% of image area)</h3><table class="ht">`;
+  const maxSz = Math.max(1, ...Object.values(h.sizes));
+  for (const [k, v] of Object.entries(h.sizes)) {
+    html += `<tr><td>${k}</td><td style="width:45%"><div class="bar" style="width:${100 * v / maxSz}%"></div></td><td style="text-align:right">${v}</td></tr>`;
+  }
+  html += `</table><h3>Where boxes sit (box centers)</h3><canvas id="heat" width="240" height="240" style="width:240px;height:240px;border-radius:6px;background:#111"></canvas>
+  <div style="color:var(--muted);font-size:12px">Bright = many boxes. A strong hotspot means the model may struggle with objects elsewhere in the frame.</div></div></div>`;
+  $('#healthBody').innerHTML = html;
+
+  const hc = $('#heat').getContext('2d'), g = h.heatmap.length, cell = 240 / g;
+  const mx = Math.max(1, ...h.heatmap.flat());
+  h.heatmap.forEach((row, y) => row.forEach((v, x) => {
+    const t = Math.sqrt(v / mx);
+    hc.fillStyle = v ? `rgba(217,119,87,${0.1 + 0.9 * t})` : '#16181d';
+    hc.fillRect(x * cell, y * cell, cell - 1, cell - 1);
+  }));
+  $('#healthBody').querySelectorAll('tr[data-cls]').forEach(tr => tr.onclick = () => {
+    const c = h.classes[+tr.dataset.cls]; showSet(`Class: ${c.name}`, c.image_list);
+  });
+  $('#healthBody').querySelectorAll('tr[data-issue].click').forEach(tr => tr.onclick = () => {
+    const is = h.issues.find(x => x.key === tr.dataset.issue); showSet(is.label, is.images);
+  });
+}
+$('#health').onclick = async () => { if (dirty) await save('edited'); $('#healthModal').classList.remove('hidden'); loadHealth(); };
+$('#healthRefresh').onclick = loadHealth;
+$('#lowCount').onchange = loadHealth;
+$('#healthClose').onclick = () => $('#healthModal').classList.add('hidden');
+$('#healthModal').onclick = e => { if (e.target.id === 'healthModal') $('#healthModal').classList.add('hidden'); };
+$('#showNames').onchange = e => { e.target.blur(); draw(); };
+$('#addClass').onclick = async () => {
+  const n = $('#newClass').value.trim(); if (!n) return;
+  await api('/api/classes', { name: n }); $('#newClass').value = ''; refresh();
+};
+$('#expYolo').onclick = () => location.href = '/api/export/yolo?reviewed=' + ($('#onlyReviewed').checked ? 1 : 0);
+$('#expCoco').onclick = () => location.href = '/api/export/coco?reviewed=' + ($('#onlyReviewed').checked ? 1 : 0);
+window.addEventListener('beforeunload', e => { if (dirty) { e.preventDefault(); e.returnValue = ''; } });
+
+new ResizeObserver(() => { resize(); fit(); draw(); }).observe($('#stage'));
+refresh().then(() => { const f = filtered(); if (f.length) openImage(f[0].name); });
+setInterval(refresh, 2500);
+</script>
+</body>
+</html>

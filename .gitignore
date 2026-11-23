@@ -1,0 +1,21 @@
+# Annotation outputs and datasets
+labels/
+_claude_tmp/
+images/
+*.zip
+*_coco.json
+
+# Python
+__pycache__/
+*.pyc
+venv/
+.venv/
+
+# Secrets / local env
+.env
+.env.*
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
