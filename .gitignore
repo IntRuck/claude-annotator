@@ -1,7 +1,8 @@
-# Annotation outputs and datasets
-labels/
-_claude_tmp/
-images/
+# Annotation outputs and datasets (today's app, run from the repo root).
+# Anchored to the root so v2 code folders like web/src/features/images/ aren't ignored.
+/labels/
+/_claude_tmp/
+/images/
 *.zip
 *_coco.json
 
@@ -19,6 +20,14 @@ venv/
 .env
 .env.*
 !.env.example
+
+# v2: backend / web / supabase (the .env rules above already cover backend/ and web/)
+*.egg-info/
+.pytest_cache/
+node_modules/
+web/dist/
+supabase/.temp/
+supabase/.branches/
 
 # OS / editor
 .DS_Store

@@ -1,0 +1,41 @@
+[project]
+name = "annotator"
+version = "2.0.0.dev0"
+description = "claude-annotator v2: FastAPI backend + worker for AI-assisted object detection labelling"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.32",
+    "sqlalchemy>=2.0.36",
+    "psycopg[binary]>=3.2.10",
+    "pydantic-settings>=2.6",
+    "python-multipart>=0.0.18",
+    "httpx>=0.28",
+    "pillow>=11.0",
+]
+
+[project.optional-dependencies]
+# Grounding DINO / YOLO-World. Install PyTorch with CUDA first (https://pytorch.org).
+detectors = ["transformers>=4.40", "ultralytics>=8.3"]
+dev = [
+    "pytest>=8.3",
+    "httpx2>=2.16",  # Starlette's TestClient uses it (plain httpx is deprecated there)
+    "testcontainers[postgres]>=4.8",
+    # Only for tests/legacy, which import today's app.py (Flask). Removed with the old files.
+    "flask>=3.0",
+]
+
+[build-system]
+requires = ["setuptools>=75"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["annotator*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "db: needs Docker (testcontainers Postgres migrated by Flyway)",
+    "gpu: loads a real detector model (torch / ultralytics)",
+]
+addopts = "-ra"

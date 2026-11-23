@@ -1,0 +1,49 @@
+# Local Supabase stack for claude-annotator v2.
+# Used for Postgres + Storage (+ Studio) only. The schema is owned by Flyway (backend/db/migration),
+# so there is no supabase/migrations folder. After `supabase db reset`, run `docker compose run --rm flyway migrate`.
+# Every port is moved to 553xx so this stack can run next to MR.ROBOT's (543xx).
+project_id = "claude-annotator"
+
+[api]
+enabled = true
+port = 55321
+
+[db]
+port = 55322
+shadow_port = 55320
+major_version = 17
+
+[db.pooler]
+enabled = false
+port = 55329
+
+[db.seed]
+enabled = false
+
+[studio]
+enabled = true
+port = 55323
+
+[inbucket]
+enabled = true
+port = 55324
+smtp_port = 55325
+pop3_port = 55326
+
+[analytics]
+enabled = false
+port = 55327
+
+[storage]
+enabled = true
+
+# Login isn't used in v1, but Storage keys come from the auth config, so it stays on.
+[auth]
+enabled = true
+
+# Live updates go Postgres NOTIFY -> backend -> SSE, so Supabase Realtime isn't needed.
+[realtime]
+enabled = false
+
+[edge_runtime]
+enabled = false

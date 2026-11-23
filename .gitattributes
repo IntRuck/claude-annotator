@@ -1,0 +1,4 @@
+# Flyway migrations are checksummed byte-for-byte (backend/tests/migrations). Keep them LF on every OS
+# so a Windows checkout doesn't look like an edited migration.
+backend/db/migration/*.sql text eol=lf
+backend/db/migration/applied.sha256 text eol=lf
