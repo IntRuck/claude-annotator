@@ -1,2 +1,10 @@
+# Always
 flask>=3.0
 pillow>=10.0
+
+# Optional: Grounding DINO (install PyTorch with CUDA first from https://pytorch.org)
+# transformers>=4.40
+
+# Optional: YOLO-World / YOLOE
+# ultralytics>=8.3
+# git+https://github.com/ultralytics/CLIP.git

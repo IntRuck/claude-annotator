@@ -4,141 +4,448 @@
 <meta charset="utf-8">
 <title>Claude Annotator</title>
 <style>
-  :root { --bg:#16181d; --panel:#1f232a; --line:#2e333c; --text:#e6e8eb; --muted:#8b93a1; --accent:#d97757; }
-  * { box-sizing: border-box; }
-  body { margin:0; font:13px/1.4 system-ui, sans-serif; background:var(--bg); color:var(--text); height:100vh; display:flex; flex-direction:column; }
-  header { display:flex; gap:8px; align-items:center; padding:8px 10px; background:var(--panel); border-bottom:1px solid var(--line); flex-wrap:wrap; }
-  header .title { font-weight:600; margin-right:8px; }
-  button, select, input { font:inherit; color:var(--text); background:#2a2f38; border:1px solid var(--line); border-radius:6px; padding:5px 9px; }
+  :root {
+    --bg:#f6f7f9; --panel:#ffffff; --line:#e3e6ea; --text:#1d2128; --muted:#6b7280; --soft:#f1f3f5;
+    --accent:#d97757; --accent-soft:#fbeee8; --ok:#16a34a; --ok-soft:#e8f6ec; --bad:#dc2626; --bad-soft:#fdecec;
+    --stage:#2a2d33;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; font:13px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; background:var(--bg); color:var(--text); height:100vh; display:flex; flex-direction:column; overflow:hidden; }
+  button, select, input, textarea { font:inherit; color:var(--text); background:#fff; border:1px solid var(--line); border-radius:8px; padding:6px 10px; }
   button { cursor:pointer; }
-  button:hover { border-color:var(--accent); }
-  button.primary { background:var(--accent); border-color:var(--accent); color:#1b1b1b; font-weight:600; }
-  button.danger:hover { border-color:#e5484d; }
-  .sep { width:1px; height:22px; background:var(--line); margin:0 4px; }
-  #status { color:var(--muted); margin-left:auto; max-width:420px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  main { flex:1; display:grid; grid-template-columns: 250px 1fr 290px; min-height:0; }
-  aside { background:var(--panel); border-right:1px solid var(--line); display:flex; flex-direction:column; min-height:0; }
-  aside.right { border-right:none; border-left:1px solid var(--line); overflow:auto; padding:10px; }
-  .filters { padding:8px; display:flex; gap:6px; border-bottom:1px solid var(--line); }
-  .filters select { flex:1; }
-  #list { overflow:auto; flex:1; }
-  .item { padding:5px 10px; display:flex; gap:8px; align-items:center; cursor:pointer; border-bottom:1px solid #262a32; }
-  .item:hover { background:#262b33; }
-  .item.active { background:#33302c; }
-  .dot { width:9px; height:9px; border-radius:50%; flex:none; }
-  .item .name { flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .item .n { color:var(--muted); font-size:12px; }
-  .s-none{background:#555} .s-auto{background:#3b82f6} .s-edited{background:#eab308} .s-reviewed{background:#22c55e} .s-error{background:#e5484d}
-  #stage { position:relative; overflow:hidden; background:#0f1115; }
+  button:hover { border-color:#c9ced6; background:var(--soft); }
+  button:disabled { opacity:.45; cursor:not-allowed; }
+  button.primary { background:var(--accent); border-color:var(--accent); color:#fff; font-weight:600; }
+  button.primary:hover { filter:brightness(.95); }
+  button.ghost { border-color:transparent; background:transparent; }
+  button.ghost:hover { background:var(--soft); }
+  input:focus, select:focus, textarea:focus { outline:2px solid var(--accent-soft); border-color:var(--accent); }
+  .muted { color:var(--muted); }
+  .hide { display:none !important; }
+
+  /* ---------- top bar ---------- */
+  header { display:flex; align-items:center; gap:8px; padding:8px 12px; background:var(--panel); border-bottom:1px solid var(--line); flex-wrap:wrap; }
+  .brand { font-weight:700; margin-right:4px; }
+  .sep { width:1px; height:24px; background:var(--line); margin:0 2px; }
+  .grow { flex:1; }
+  #status { color:var(--muted); max-width:340px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-size:12px; }
+  #status.busy { color:var(--accent); }
+  .ai { display:flex; align-items:center; gap:6px; background:var(--soft); border-radius:10px; padding:4px 6px; }
+  .ai .lbl { font-size:12px; color:var(--muted); font-weight:600; padding:0 4px; }
+  .ai select, .ai input { padding:4px 8px; }
+  #backendNote { font-size:12px; color:var(--bad); }
+
+  /* ---------- 3 columns ---------- */
+  main { flex:1; display:grid; grid-template-columns:270px 1fr 250px; min-height:0; }
+  aside { background:var(--panel); min-height:0; display:flex; flex-direction:column; }
+  aside.left { border-right:1px solid var(--line); }
+  aside.right { border-left:1px solid var(--line); }
+  .pad { padding:12px 14px; }
+  .divider { border-top:1px solid var(--line); }
+
+  /* left */
+  .imghead { display:flex; align-items:center; gap:6px; padding:12px 14px; border-bottom:1px solid var(--line); }
+  .imghead .fname { flex:1; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .annhead { display:flex; align-items:center; gap:8px; padding:12px 14px 4px; font-size:15px; font-weight:600; }
+  .badge { font-size:11px; font-weight:600; background:var(--soft); border-radius:10px; padding:1px 8px; color:var(--muted); }
+  .tabs { display:flex; margin:6px 14px 0; border-bottom:1px solid var(--line); }
+  .tabs button { flex:1; border:none; border-radius:0; background:none; padding:8px 0; color:var(--muted); border-bottom:2px solid transparent; }
+  .tabs button.on { color:var(--accent); border-bottom-color:var(--accent); font-weight:600; }
+  .tabpanel { flex:1; overflow:auto; padding:8px 8px 8px 14px; min-height:80px; }
+  .crow { display:flex; align-items:center; gap:9px; padding:6px 8px; border-radius:8px; cursor:pointer; }
+  .crow:hover { background:var(--soft); }
+  .crow.cur { background:var(--accent-soft); }
+  .crow .nm { flex:1; font-family:ui-monospace, Consolas, monospace; font-size:12.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .crow .key { font-size:11px; color:var(--muted); width:12px; text-align:center; }
+  .crow .cnt { font-size:11px; background:var(--soft); border-radius:10px; padding:1px 7px; color:var(--muted); min-width:22px; text-align:center; }
+  .crow.cur .cnt { background:#fff; }
+  .dot { width:10px; height:10px; border-radius:50%; flex:none; }
+  .brow { display:flex; align-items:center; gap:6px; padding:4px 6px; border-radius:8px; }
+  .brow.sel { background:var(--accent-soft); }
+  .brow select { flex:1; min-width:0; padding:3px 6px; font-size:12px; }
+  .brow button { padding:2px 7px; }
+  .empty { color:var(--muted); font-size:12px; padding:10px 8px; }
+  .aibtns { padding:10px 14px; display:flex; flex-direction:column; gap:6px; border-top:1px solid var(--line); }
+  .aibtns button { width:100%; }
+  button.aibig { border:1.5px solid var(--accent); color:var(--accent); background:#fff; font-weight:600; padding:8px; }
+  button.aibig:hover { background:var(--accent-soft); }
+  #note { font-size:12px; color:#b45309; padding:0 14px 8px; }
+  details.log { border-top:1px solid var(--line); padding:8px 14px; }
+  details.log summary { cursor:pointer; color:var(--muted); font-size:12px; }
+  #log { font:11px/1.4 ui-monospace, Consolas, monospace; color:var(--muted); white-space:pre-wrap; max-height:160px; overflow:auto; margin-top:6px; }
+
+  /* center */
+  #stage { position:relative; overflow:hidden; background:var(--stage); }
   #cv { position:absolute; inset:0; width:100%; height:100%; cursor:crosshair; }
-  #hint { position:absolute; left:10px; bottom:8px; color:var(--muted); font-size:12px; pointer-events:none; background:#0f1115cc; padding:4px 8px; border-radius:6px; }
-  #namesToggle { position:absolute; right:10px; top:8px; background:#0f1115cc; padding:4px 8px; border-radius:6px; color:var(--text); }
-  #imgname { position:absolute; left:10px; top:8px; font-size:12px; background:#0f1115cc; padding:4px 8px; border-radius:6px; }
-  h3 { margin:12px 0 6px; font-size:12px; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); }
-  h3:first-child { margin-top:0; }
-  .cls { display:flex; align-items:center; gap:8px; padding:4px 6px; border-radius:6px; cursor:pointer; }
-  .cls:hover { background:#2a2f38; }
-  .cls.cur { outline:1px solid var(--accent); }
-  .sw { width:12px; height:12px; border-radius:3px; flex:none; }
-  .cls .k { color:var(--muted); font-size:11px; width:14px; }
-  .row { display:flex; gap:6px; margin-top:6px; }
-  .row input { flex:1; min-width:0; }
-  .box { display:flex; gap:6px; align-items:center; padding:3px 4px; border-radius:6px; }
-  .box.sel { background:#33302c; }
-  .box select { flex:1; min-width:0; padding:3px 5px; }
-  .box button { padding:2px 7px; }
-  .note { color:#f0b429; font-size:12px; margin-top:6px; }
-  #log { font:11px/1.35 ui-monospace, monospace; color:var(--muted); white-space:pre-wrap; max-height:180px; overflow:auto; background:#16181d; padding:6px; border-radius:6px; }
-  label.chk { display:flex; gap:5px; align-items:center; color:var(--muted); }
-  .modal { position:fixed; inset:0; background:#000a; display:flex; align-items:center; justify-content:center; z-index:10; }
+  #cv.pan { cursor:grab; }
+  #cv.panning { cursor:grabbing; }
+  .float { position:absolute; background:#fff; border-radius:12px; box-shadow:0 2px 10px #0003; }
+  .rail { right:12px; top:50%; transform:translateY(-50%); display:flex; flex-direction:column; padding:6px; gap:2px; }
+  .rail button { width:36px; height:36px; padding:0; border:none; background:none; font-size:16px; border-radius:8px; }
+  .rail button:hover { background:var(--soft); }
+  .rail button.on { background:var(--accent-soft); color:var(--accent); outline:1.5px solid var(--accent); }
+  .rail .rsep { height:1px; background:var(--line); margin:4px 4px; }
+  .zoombar { left:12px; bottom:12px; display:flex; align-items:center; gap:2px; padding:4px; }
+  .zoombar button { border:none; background:none; padding:5px 9px; border-radius:8px; }
+  .zoombar button:hover { background:var(--soft); }
+  .zoombar button.on { background:var(--accent-soft); color:var(--accent); }
+  #zoomPct { min-width:48px; text-align:center; font-size:12px; font-weight:600; }
+  .pop { position:absolute; bottom:62px; left:12px; width:280px; padding:14px 16px; z-index:5; }
+  .pop h4 { margin:0 0 10px; font-size:14px; display:flex; justify-content:space-between; align-items:center; }
+  .pop .prow { display:flex; align-items:center; justify-content:space-between; margin:10px 0; gap:10px; }
+  .pop input[type=range] { width:100%; accent-color:var(--accent); }
+  .pop .val { font-size:12px; color:var(--muted); width:36px; text-align:right; }
+  .switch { position:relative; width:36px; height:20px; flex:none; }
+  .switch input { display:none; }
+  .switch span { position:absolute; inset:0; background:#cfd4da; border-radius:20px; transition:.15s; cursor:pointer; }
+  .switch span::after { content:""; position:absolute; left:2px; top:2px; width:16px; height:16px; border-radius:50%; background:#fff; transition:.15s; }
+  .switch input:checked + span { background:var(--accent); }
+  .switch input:checked + span::after { left:18px; }
+  table.keys { width:100%; border-collapse:collapse; font-size:12px; }
+  table.keys td { padding:3px 0; }
+  table.keys td:first-child { white-space:nowrap; padding-right:10px; }
+  kbd { font:11px ui-monospace, Consolas, monospace; background:var(--soft); border:1px solid var(--line); border-bottom-width:2px; border-radius:5px; padding:0 5px; }
+  #flagBanner { top:12px; left:50%; transform:translateX(-50%); padding:6px 14px; background:var(--bad); color:#fff; font-weight:600; font-size:12px; }
+  #emptyStage { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:#c8ccd2; font-size:14px; text-align:center; pointer-events:none; }
+
+  /* right */
+  .folder { padding:12px 14px 4px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .counter { display:flex; align-items:center; justify-content:space-between; padding:4px 10px; }
+  .counter button { border:none; background:none; font-size:20px; padding:2px 10px; }
+  .counter .num { font-size:20px; font-weight:600; }
+  .counter .num .tot { color:var(--muted); font-weight:400; font-size:15px; }
+  .actions { padding:6px 14px 10px; display:flex; flex-direction:column; gap:6px; }
+  button.approve { background:var(--ok-soft); border-color:#bfe5cb; color:var(--ok); font-weight:600; padding:8px; }
+  button.approve:hover { background:#d9f0e1; }
+  button.approve.done { background:var(--ok); color:#fff; border-color:var(--ok); }
+  button.flagbtn { background:var(--bad-soft); border-color:#f5c7c7; color:var(--bad); font-weight:600; padding:8px; }
+  button.flagbtn:hover { background:#fadcdc; }
+  button.flagbtn.on { background:var(--bad); color:#fff; border-color:var(--bad); }
+  .flagmore { display:flex; flex-direction:column; gap:6px; }
+  .flagmore select, .flagmore input { width:100%; padding:5px 8px; font-size:12px; }
+  #dirtyNote { font-size:11px; color:#b45309; text-align:center; min-height:15px; }
+  .filterbar { padding:8px 14px; border-top:1px solid var(--line); }
+  .filterbar select { width:100%; }
+  #thumbs { flex:1; overflow:auto; padding:4px 10px 10px; }
+  .thumb { position:relative; margin:6px 0; border-radius:10px; padding:4px; cursor:pointer; border:2px solid transparent; }
+  .thumb:hover { background:var(--soft); }
+  .thumb.active { border-color:var(--accent); background:var(--accent-soft); }
+  .thumb img { width:100%; aspect-ratio:4/3; object-fit:cover; border-radius:7px; display:block; background:#e5e7eb; }
+  .thumb .tn { display:flex; align-items:center; gap:6px; font-size:12px; margin-top:4px; padding:0 2px; }
+  .thumb .tn span.n { flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .thumb .tb { position:absolute; top:9px; right:9px; display:flex; gap:4px; }
+  .thumb .tb span { background:#fffe; border-radius:8px; padding:0 6px; font-size:11px; font-weight:600; }
+  .s-none{background:#9ca3af} .s-auto{background:#3b82f6} .s-edited{background:#eab308} .s-reviewed{background:#16a34a} .s-error{background:#dc2626}
+
+  /* ---------- modals ---------- */
+  .modal { position:fixed; inset:0; background:#1d212899; display:flex; align-items:center; justify-content:center; z-index:20; }
   .modal.hidden { display:none; }
-  .modal-body { background:var(--panel); border:1px solid var(--line); border-radius:10px; width:min(1000px, 94vw); max-height:90vh; overflow:auto; padding:16px 18px; }
-  .modal-head { display:flex; align-items:center; gap:10px; margin-bottom:6px; }
-  .modal-head h2 { margin:0; font-size:16px; flex:1; }
-  .cards { display:grid; grid-template-columns:repeat(auto-fill, minmax(140px, 1fr)); gap:8px; }
-  .card { background:#262a32; border-radius:8px; padding:8px 10px; }
+  .modal-body { background:var(--panel); border-radius:14px; width:min(1000px, 94vw); max-height:92vh; overflow:auto; padding:20px 22px; box-shadow:0 10px 40px #0004; }
+  .modal-head { display:flex; align-items:center; gap:10px; margin-bottom:8px; }
+  .modal-head h2 { margin:0; font-size:18px; flex:1; }
+  .tips { color:var(--muted); font-size:12.5px; line-height:1.55; margin:4px 0 12px; }
+  .tips b { color:var(--text); font-weight:600; }
+  table.sku { width:100%; border-collapse:collapse; }
+  table.sku th { text-align:left; color:var(--muted); font-weight:500; font-size:12px; padding:6px; border-bottom:1px solid var(--line); }
+  table.sku td { padding:6px; border-bottom:1px solid var(--soft); vertical-align:top; }
+  table.sku input, table.sku textarea { width:100%; }
+  table.sku textarea { min-height:52px; resize:vertical; }
+  table.sku tr.new td { background:#f7fbf8; }
+  .saved { color:var(--ok); font-size:12px; opacity:0; transition:opacity .3s; }
+  .saved.show { opacity:1; }
+  #skuIntro { background:var(--accent-soft); border-radius:10px; padding:10px 14px; margin-bottom:12px; }
+  .cards { display:grid; grid-template-columns:repeat(auto-fill, minmax(150px, 1fr)); gap:8px; }
+  .card { background:var(--soft); border-radius:10px; padding:10px 12px; }
   .card .v { font-size:20px; font-weight:600; }
   .card .l { color:var(--muted); font-size:12px; }
   table.ht { width:100%; border-collapse:collapse; }
-  table.ht th, table.ht td { text-align:left; padding:4px 6px; border-bottom:1px solid #2a2f38; }
+  table.ht th, table.ht td { text-align:left; padding:5px 6px; border-bottom:1px solid var(--soft); }
   table.ht th { color:var(--muted); font-weight:500; font-size:12px; }
   table.ht tr.click { cursor:pointer; }
-  table.ht tr.click:hover { background:#262b33; }
+  table.ht tr.click:hover { background:var(--soft); }
   .bar { height:8px; border-radius:4px; background:var(--accent); }
-  .warn { color:#f0b429; }
-  .bad { color:#e5484d; }
-  .two { display:grid; grid-template-columns: 1fr 260px; gap:16px; }
+  .warn { color:#b45309; } .bad { color:var(--bad); }
+  .two { display:grid; grid-template-columns:1fr 260px; gap:18px; }
+  h3 { margin:14px 0 6px; font-size:12px; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); }
+  label.chk { display:flex; gap:6px; align-items:center; font-size:12.5px; }
+
+  /* start page */
+  #startModal .modal-body { width:min(860px, 94vw); }
+  .start h1 { margin:0 0 4px; font-size:22px; }
+  .step { border:1px solid var(--line); border-radius:12px; padding:14px 16px; margin-top:14px; }
+  .step h3 { margin:0 0 8px; color:var(--text); text-transform:none; letter-spacing:0; font-size:14px; }
+  .pathrow { display:flex; gap:8px; }
+  .pathrow input { flex:1; font-family:ui-monospace, Consolas, monospace; font-size:12.5px; }
+  .browser { margin-top:10px; border:1px solid var(--line); border-radius:10px; overflow:hidden; }
+  .browser .bhead { display:flex; gap:6px; align-items:center; padding:8px; background:var(--soft); flex-wrap:wrap; }
+  .browser .bpath { flex:1; font:12px ui-monospace, Consolas, monospace; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:160px; }
+  .browser .blist { max-height:240px; overflow:auto; }
+  .browser .bdir { padding:7px 12px; cursor:pointer; border-top:1px solid var(--soft); }
+  .browser .bdir:hover { background:var(--accent-soft); }
+  .browser .bfoot { display:flex; align-items:center; gap:8px; padding:8px; border-top:1px solid var(--line); }
+  .preview { margin-top:10px; font-size:13px; line-height:1.7; }
+  .preview code { font-size:12px; background:var(--soft); padding:1px 5px; border-radius:4px; }
+  .recent { display:flex; flex-direction:column; gap:6px; }
+  .recent button { text-align:left; font:12px ui-monospace, Consolas, monospace; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  details.adv summary { cursor:pointer; color:var(--muted); font-size:12.5px; margin-top:10px; }
+  .adv .pathrow { margin-top:8px; }
+  .adv label { display:block; font-size:12px; color:var(--muted); margin-top:8px; }
 </style>
 </head>
 <body>
+
+<!-- ======================= top bar ======================= -->
 <header>
-  <span class="title">Claude Annotator</span>
-  <select id="model" title="Claude model">
-    <option value="sonnet" selected>Sonnet</option>
-    <option value="haiku">Haiku</option>
-    <option value="opus">Opus</option>
-  </select>
-  <label class="chk" title="Draw a 0-1000 grid on the image sent to Claude"><input type="checkbox" id="grid"> grid</label>
-  <input id="extra" placeholder="Extra instructions for Claude (optional)" style="width:240px">
-  <div class="sep"></div>
-  <button class="primary" id="runUnlabeled" title="Annotate every image without labels">Annotate unlabeled</button>
-  <button id="runThis" title="Annotate the current image from scratch">Annotate this</button>
-  <button id="refineThis" title="Ask Claude to review and fix the current boxes">Refine this</button>
-  <button id="refineAuto" title="Refine every image that is auto-labeled but not reviewed">Refine all auto</button>
-  <button class="danger" id="stop">Stop</button>
-  <div class="sep"></div>
-  <label class="chk"><input type="checkbox" id="onlyReviewed"> reviewed only</label>
-  <button id="health">Health check</button>
-  <button id="expYolo">Export YOLO</button>
-  <button id="expCoco">Export COCO</button>
+  <span class="brand">Claude Annotator</span>
+  <button id="dsBtn" title="Open another dataset">📁 <span id="dsName">Open dataset</span></button>
+  <button id="skuBtn" title="Add SKUs and describe what each looks like">SKUs</button>
+  <button id="health" title="Dataset report: class counts, issues">Health check</button>
+  <div class="grow"></div>
+
+  <div class="ai" title="Which AI model labels the images">
+    <span class="lbl">AI</span>
+    <select id="backend">
+      <option value="claude" selected>Claude (your plan)</option>
+      <option value="gemini">Gemini (API key)</option>
+      <option value="ollama">Local VLM (Ollama)</option>
+      <option value="grounding_dino">Grounding DINO</option>
+      <option value="yolo_world">YOLO-World / YOLOE</option>
+    </select>
+    <span class="opt" data-for="claude">
+      <select id="model" title="Claude model">
+        <option value="sonnet" selected>Sonnet</option>
+        <option value="haiku">Haiku</option>
+        <option value="opus">Opus</option>
+      </select>
+    </span>
+    <span class="opt" data-for="gemini">
+      <input id="geminiModel" list="geminiList" value="gemini-3.5-flash-lite" title="Gemini model" style="width:165px">
+      <datalist id="geminiList"><option value="gemini-3.5-flash-lite"><option value="gemini-3.5-flash"></datalist>
+    </span>
+    <span class="opt" data-for="ollama">
+      <input id="ollamaModel" list="ollamaList" value="qwen3-vl:4b" title="Ollama model name (see 'ollama list')" style="width:120px">
+      <datalist id="ollamaList"></datalist>
+    </span>
+    <span class="opt" data-for="grounding_dino">
+      <select id="gdinoModel" title="Grounding DINO size">
+        <option value="IDEA-Research/grounding-dino-tiny" selected>tiny</option>
+        <option value="IDEA-Research/grounding-dino-base">base (more VRAM)</option>
+      </select>
+    </span>
+    <span class="opt" data-for="yolo_world">
+      <input id="yoloWeights" value="yolov8s-worldv2.pt" title="Ultralytics weights: yolov8s-worldv2.pt, yoloe-11s-seg.pt, ..." style="width:135px">
+    </span>
+    <label class="chk opt" data-for="grounding_dino yolo_world" title="Minimum confidence to keep a box">conf <input id="threshold" type="number" min="0.05" max="0.95" step="0.05" value="0.3" style="width:60px"></label>
+    <label class="chk opt" data-for="claude ollama" title="Draw a 0-1000 grid on the image the AI sees"><input type="checkbox" id="grid"> grid</label>
+    <input class="opt" data-for="claude ollama gemini" id="extra" placeholder="Extra instructions" style="width:150px" title="Extra instructions for the AI (optional)">
+    <span id="backendNote"></span>
+    <button class="primary" id="runUnlabeled" title="Label every image that has no labels yet">Label all unlabeled</button>
+    <button id="refineAuto" title="Let the AI review and fix every auto-labeled image you haven't approved">Refine all</button>
+    <button id="stop" title="Stop after the current image">■ Stop</button>
+  </div>
   <span id="status">idle</span>
+  <div class="sep"></div>
+  <button id="exportBtn">Export ▾</button>
 </header>
+
+<!-- ======================= 3 columns ======================= -->
 <main>
-  <aside>
-    <div class="filters">
+  <!-- ---------- left: this image ---------- -->
+  <aside class="left">
+    <div class="imghead"><span class="fname" id="fname">No image</span><button class="ghost" id="copyName" title="Copy file name">⧉</button></div>
+    <div class="annhead">Annotations <span class="badge" id="boxCount">0</span></div>
+    <div class="tabs"><button id="tabClasses" class="on">Classes</button><button id="tabBoxes">Boxes</button></div>
+    <div class="tabpanel" id="panelClasses"></div>
+    <div class="tabpanel hide" id="panelBoxes"></div>
+    <div id="note"></div>
+    <div class="aibtns">
+      <button class="aibig" id="runThis" title="Ask the selected AI to label this image from scratch">✨ Find objects with AI</button>
+      <button id="refineThis" title="Ask the AI to review and fix the boxes on this image">Refine boxes with AI</button>
+    </div>
+    <details class="log"><summary>Activity log</summary><div id="log"></div></details>
+  </aside>
+
+  <!-- ---------- center: canvas ---------- -->
+  <section id="stage">
+    <canvas id="cv"></canvas>
+    <div id="emptyStage">Open a dataset to start</div>
+    <div class="float hide" id="flagBanner">🚩 Flagged</div>
+
+    <div class="float rail">
+      <button id="toolBox" class="on" title="Box tool: drag to draw (B)">▭</button>
+      <button id="toolPan" title="Pan tool: drag to move the image (V, or hold Space)">✋</button>
+      <div class="rsep"></div>
+      <button id="undo" title="Undo (Ctrl+Z)">↶</button>
+      <button id="redo" title="Redo (Ctrl+Y)">↷</button>
+      <div class="rsep"></div>
+      <button id="soloBtn" title="Show only the selected box (H)">◎</button>
+      <button id="delBtn" title="Delete selected box (Del)">🗑</button>
+    </div>
+
+    <div class="float zoombar">
+      <button id="zoomOut" title="Zoom out">−</button>
+      <span id="zoomPct">100%</span>
+      <button id="zoomIn" title="Zoom in">+</button>
+      <button id="zoomFit" title="Fit to screen (F)">Fit</button>
+      <div class="sep"></div>
+      <button id="dispBtn" title="Display options">☀ Display</button>
+      <button id="keysBtn" title="Keyboard shortcuts">⌨</button>
+    </div>
+
+    <div class="float pop hide" id="dispPop">
+      <h4>Display options <button class="ghost" id="dispReset" title="Reset">↺</button></h4>
+      <div class="prow"><span>Brightness</span><span class="val" id="briVal">1.0</span></div>
+      <input type="range" id="bri" min="0.4" max="2" step="0.05" value="1">
+      <div class="prow"><span>Contrast</span><span class="val" id="conVal">1.0</span></div>
+      <input type="range" id="con" min="0.4" max="2" step="0.05" value="1">
+      <div class="prow"><span>Show annotations</span><label class="switch"><input type="checkbox" id="showAnn" checked><span></span></label></div>
+      <div class="prow"><span>Show class names (L)</span><label class="switch"><input type="checkbox" id="showNames" checked><span></span></label></div>
+      <div class="prow"><span>Fill boxes</span><label class="switch"><input type="checkbox" id="fillBoxes"><span></span></label></div>
+    </div>
+
+    <div class="float pop hide" id="keysPop" style="width:320px">
+      <h4>Keyboard shortcuts</h4>
+      <table class="keys">
+        <tr><td><kbd>A</kbd> <kbd>D</kbd></td><td>Previous / next image</td></tr>
+        <tr><td><kbd>R</kbd></td><td>Approve and go to next</td></tr>
+        <tr><td><kbd>G</kbd></td><td>🚩 Flag / unflag</td></tr>
+        <tr><td><kbd>S</kbd></td><td>Save</td></tr>
+        <tr><td><kbd>B</kbd> <kbd>V</kbd></td><td>Box tool / pan tool</td></tr>
+        <tr><td><kbd>Space</kbd> hold</td><td>Pan while held</td></tr>
+        <tr><td><kbd>1</kbd>–<kbd>9</kbd></td><td>Pick class (and change selected box)</td></tr>
+        <tr><td><kbd>Del</kbd></td><td>Delete selected box</td></tr>
+        <tr><td><kbd>Ctrl</kbd>+<kbd>Z</kbd> / <kbd>Y</kbd></td><td>Undo / redo</td></tr>
+        <tr><td><kbd>H</kbd></td><td>Show only selected box</td></tr>
+        <tr><td><kbd>L</kbd></td><td>Show / hide class names</td></tr>
+        <tr><td><kbd>F</kbd></td><td>Fit image</td></tr>
+        <tr><td>Wheel / right-drag</td><td>Zoom / pan</td></tr>
+        <tr><td><kbd>Esc</kbd></td><td>Deselect, close popups, leave a text box</td></tr>
+      </table>
+    </div>
+  </section>
+
+  <!-- ---------- right: navigation & review ---------- -->
+  <aside class="right">
+    <div class="folder" id="folder" title="">Folder: –</div>
+    <div class="counter">
+      <button id="prevBtn" title="Previous (A)">‹</button>
+      <span class="num"><span id="pos">0</span> <span class="tot">/ <span id="tot">0</span></span></span>
+      <button id="nextBtn" title="Next (D)">›</button>
+    </div>
+    <div class="actions">
+      <button class="approve" id="approveBtn" title="Mark as checked and go to the next image (R)">✓ Approve (R)</button>
+      <button class="flagbtn" id="flagBtn" title="Mark this image to come back to later (G)">🚩 Flag for later (G)</button>
+      <div class="flagmore hide" id="flagMore">
+        <select id="flagReason">
+          <option value="">reason...</option>
+          <option>missing boxes</option>
+          <option>bad / loose boxes</option>
+          <option>wrong class</option>
+          <option>all bad, redo</option>
+          <option>unsure</option>
+          <option>other</option>
+        </select>
+        <input type="text" id="flagNote" placeholder="note (optional)">
+      </div>
+      <div id="dirtyNote"></div>
+    </div>
+    <div class="filterbar">
       <select id="filter">
         <option value="all">All images</option>
         <option value="none">Unlabeled</option>
-        <option value="auto">Auto (Claude)</option>
+        <option value="auto">Labeled by AI (not checked)</option>
         <option value="edited">Edited</option>
-        <option value="reviewed">Reviewed</option>
+        <option value="reviewed">Approved</option>
+        <option value="flagged">🚩 Flagged</option>
         <option value="error">Errors</option>
         <option value="custom" id="customOpt" hidden>Custom</option>
       </select>
     </div>
-    <div id="list"></div>
-  </aside>
-  <section id="stage">
-    <canvas id="cv"></canvas>
-    <div id="imgname"></div>
-    <label class="chk" id="namesToggle" title="Show class names on boxes (L)"><input type="checkbox" id="showNames" checked> label names</label>
-    <div id="hint">Drag: new box · Click: select · Drag corner: resize · Del: delete · 1-9: class · H: solo box · L: names · Wheel: zoom · Right-drag: pan · F: fit · Ctrl+Z/Y: undo/redo · S: save · R: reviewed + next · A/D: prev/next</div>
-  </section>
-  <aside class="right">
-    <h3>Classes <span style="text-transform:none">(new boxes use the highlighted one)</span></h3>
-    <div id="classes"></div>
-    <div class="row"><input id="newClass" placeholder="Add class"><button id="addClass">Add</button></div>
-    <h3>Boxes on this image</h3>
-    <div id="boxes"></div>
-    <div id="note" class="note"></div>
-    <div class="row">
-      <button id="undo" title="Ctrl+Z">Undo</button>
-      <button id="redo" title="Ctrl+Y or Ctrl+Shift+Z">Redo</button>
-    </div>
-    <div class="row">
-      <button id="save">Save (S)</button>
-      <button class="primary" id="review">Reviewed + next (R)</button>
-    </div>
-    <h3>Log</h3>
-    <div id="log"></div>
+    <div id="thumbs"></div>
   </aside>
 </main>
 
+<!-- ======================= start page ======================= -->
+<div id="startModal" class="modal hidden">
+  <div class="modal-body start">
+    <div class="modal-head"><h1 style="flex:1">Open a dataset</h1><button id="startClose" class="hide">Cancel</button></div>
+    <div class="tips">Pick the folder with your images. Existing YOLO labels in the labels folder are loaded and shown automatically.</div>
+
+    <div class="step hide" id="recentStep">
+      <h3>Recent</h3>
+      <div class="recent" id="recentList"></div>
+    </div>
+
+    <div class="step">
+      <h3>1 · Images folder</h3>
+      <div class="pathrow">
+        <input id="dsPath" placeholder="e.g. C:\Users\you\datasets\shelf\images">
+        <button id="browseBtn">Browse…</button>
+      </div>
+      <div class="browser hide" id="browser">
+        <div class="bhead">
+          <button id="bUp" title="Up one folder">⬆ Up</button>
+          <button id="bHome" title="Home folder">⌂</button>
+          <span id="bDrives"></span>
+          <span class="bpath" id="bPath"></span>
+        </div>
+        <div class="blist" id="bList"></div>
+        <div class="bfoot"><span class="muted grow" id="bCount"></span><button class="primary" id="bUse">Use this folder</button></div>
+      </div>
+      <div class="preview" id="dsPreview"></div>
+      <details class="adv">
+        <summary>Advanced: labels folder and class list file</summary>
+        <label>Labels folder (YOLO .txt files)</label>
+        <div class="pathrow"><input id="dsLabels" placeholder="default: labels next to the images folder"></div>
+        <label>Class list file</label>
+        <div class="pathrow"><input id="dsClasses" placeholder="default: classes.txt next to the images folder"></div>
+      </details>
+      <div style="display:flex; justify-content:flex-end; margin-top:12px">
+        <button class="primary" id="openDs" disabled>Open dataset →</button>
+      </div>
+    </div>
+    <div class="tips" style="margin-top:10px">Step 2 is choosing which SKUs to detect. That opens right after this.</div>
+  </div>
+</div>
+
+<!-- ======================= SKU manager ======================= -->
+<div id="skuModal" class="modal hidden">
+  <div class="modal-body">
+    <div class="modal-head">
+      <h2>SKUs to detect</h2>
+      <span class="saved" id="skuSaved">saved</span>
+      <button id="skuClose">Close</button>
+    </div>
+    <div id="skuIntro" class="hide"><b>2 · What should be detected?</b> Add each SKU below. A short description of how it looks helps the AI a lot. You can change this any time from the <b>SKUs</b> button.</div>
+    <div class="tips">
+      <b>Name</b> goes into your YOLO labels (no spaces, e.g. <code>sardine_155g</code>). The row number is the class ID, so rows never move; new SKUs go at the end.<br>
+      <b>Detector prompt</b> is a short plain phrase for Grounding DINO / YOLO-World (e.g. <i>red tin can</i>).<br>
+      <b>Description</b> is for Claude / Gemini / Ollama: shape, colors, brand text, size, lid, and how it differs from look-alikes
+      (e.g. <i>Short round red tin, yellow label with "SARDIN" in bold, white pull-tab lid. The 425g version is taller.</i>).
+      Changes save when you leave a field.
+    </div>
+    <table class="sku">
+      <thead><tr><th style="width:44px">ID</th><th style="width:21%">Name</th><th style="width:22%">Detector prompt</th><th>Description</th></tr></thead>
+      <tbody id="skuRows"></tbody>
+      <tbody>
+        <tr class="new">
+          <td>+</td>
+          <td><input id="newSkuName" placeholder="new_sku_name"></td>
+          <td><input id="newSkuPrompt" placeholder="short phrase (optional)"></td>
+          <td><textarea id="newSkuDesc" placeholder="what it looks like (optional)"></textarea>
+              <div style="display:flex; justify-content:flex-end; margin-top:6px"><button class="primary" id="newSkuAdd">Add SKU</button></div></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ======================= health ======================= -->
 <div id="healthModal" class="modal hidden">
   <div class="modal-body">
     <div class="modal-head">
       <h2>Dataset health</h2>
-      <label class="chk">Low-count warning below <input id="lowCount" type="number" value="100" min="1" style="width:70px"> boxes</label>
+      <label class="chk">Warn below <input id="lowCount" type="number" value="100" min="1" style="width:70px"> boxes</label>
       <button id="healthRefresh">Refresh</button>
       <button id="healthClose">Close</button>
     </div>
@@ -146,102 +453,195 @@
   </div>
 </div>
 
+<!-- ======================= export ======================= -->
+<div id="exportModal" class="modal hidden">
+  <div class="modal-body" style="width:min(520px, 94vw)">
+    <div class="modal-head"><h2>Export labels</h2><button id="exportClose">Close</button></div>
+    <label class="chk" style="margin:8px 0"><input type="checkbox" id="onlyReviewed"> Approved images only <span class="muted">(only images you checked and approved)</span></label>
+    <label class="chk" style="margin:8px 0"><input type="checkbox" id="skipFlagged" checked> Leave out 🚩 flagged images <span class="muted">(probably bad labels)</span></label>
+    <div style="display:flex; gap:8px; margin-top:14px">
+      <button class="primary" id="expYolo" title="Zip with images/train, images/val, labels and data.yaml">Download YOLO zip</button>
+      <button id="expCoco" title="One COCO JSON file, for tools that use the COCO format">Download COCO JSON</button>
+    </div>
+    <div class="tips" style="margin-top:12px"><b>YOLO</b> is what you want for YOLO training (one .txt per image + data.yaml, 10% held out for validation). <b>COCO</b> is a single JSON file used by some other tools (e.g. DETR, Detectron, MMDetection).</div>
+  </div>
+</div>
+
 <script>
 const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const cv = $('#cv'), ctx = cv.getContext('2d');
-let S = { classes: [], images: [], worker: {} };
+let S = { classes: [], images: [], worker: {}, project: null };
+let PROJ = null;              // dataset info from /api/project
 let cur = null;               // current image name
 let img = new Image();
 let boxes = [], sel = -1, curClass = 0, dirty = false, solo = false, hidden = new Set();
 let view = { scale: 1, ox: 0, oy: 0 };
-let drag = null;              // {mode, ...}
-let lastWorkerDone = -1;
-let custom = null;            // {label, set} for health drill-down filter
+let drag = null, tool = 'box', spaceHeld = false;
+let lastWorkerDone = -1, custom = null;
 let undoStack = [], redoStack = [];
 
-const color = i => `hsl(${(i * 137.508) % 360} 85% 58%)`;
+const color = i => `hsl(${(i * 137.508) % 360} 80% 50%)`;
 const api = (url, body) => fetch(url, body === undefined ? {} : {
   method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
 }).then(r => r.json());
+const anyModalOpen = () => [...document.querySelectorAll('.modal')].some(m => !m.classList.contains('hidden'));
 
-// ---------------- state & list ----------------
+// ======================= state polling =======================
+let refreshSeq = 0;
 async function refresh() {
-  S = await api('/api/state');
-  renderList(); renderClasses();
-  const w = S.worker;
-  $('#status').textContent = w.running ? `${w.message} (${w.done}/${w.total})` : w.message;
+  // The background poll and button clicks both call refresh(). Number each call and keep only the
+  // newest answer, so a slow old response can't overwrite fresher data.
+  const mine = ++refreshSeq;
+  const st = await api('/api/state');
+  if (mine !== refreshSeq) return;
+  S = st;
+  renderThumbs(); renderClasses(); renderCounter(); renderReviewButtons();
+  const w = S.worker || {};
+  $('#status').textContent = w.running ? `${w.message} (${w.done}/${w.total})` : (w.message || '');
+  $('#status').classList.toggle('busy', !!w.running);
   if (w.done !== lastWorkerDone) {
     lastWorkerDone = w.done;
     if (cur && !dirty) loadLabels(cur);
-    $('#log').textContent = (await api('/api/log')).join('\n');
-    $('#log').scrollTop = 1e9;
+    if (S.project !== null) { $('#log').textContent = (await api('/api/log')).join('\n'); $('#log').scrollTop = 1e9; }
   }
 }
 function filtered() {
   const f = $('#filter').value;
   if (f === 'custom' && custom) return S.images.filter(i => custom.set.has(i.name));
+  if (f === 'flagged') return S.images.filter(i => i.flag);
   return S.images.filter(i => f === 'all' || i.status === f);
 }
-function renderList() {
-  const el = $('#list'); el.innerHTML = '';
-  for (const it of filtered()) {
+const curInfo = () => S.images.find(i => i.name === cur);
+
+// ======================= right panel =======================
+let thumbSig = '';
+function renderThumbs() {
+  const list = filtered();
+  const sig = list.map(i => `${i.name}|${i.status}|${i.flag}|${i.boxes}`).join(';');
+  if (sig !== thumbSig) {   // only rebuild when something changed, so the list doesn't flicker or jump
+    thumbSig = sig;
+    const el = $('#thumbs'), top = el.scrollTop; el.innerHTML = '';
+    if (!list.length) el.innerHTML = `<div class="empty">${S.images.length ? 'No images match this filter.' : 'No images in this folder.'}</div>`;
+    for (const it of list) {
+      const d = document.createElement('div');
+      d.className = 'thumb'; d.dataset.name = it.name;
+      d.innerHTML = `<img loading="lazy" alt="">
+        <div class="tb">${it.flag ? '<span>🚩</span>' : ''}${it.boxes ? `<span>${it.boxes}</span>` : ''}</div>
+        <div class="tn"><span class="dot s-${it.status}"></span><span class="n"></span></div>`;
+      d.querySelector('img').src = '/api/thumb/' + encodeURIComponent(it.name);
+      d.querySelector('.n').textContent = it.name;
+      d.title = [it.name, it.note || it.status, it.flag ? `🚩 ${it.flag_reason || 'flagged'}${it.flag_note ? ': ' + it.flag_note : ''}` : ''].filter(Boolean).join('\n');
+      d.onclick = () => openImage(it.name);
+      el.appendChild(d);
+    }
+    el.scrollTop = top;
+  }
+  document.querySelectorAll('.thumb').forEach(t => t.classList.toggle('active', t.dataset.name === cur));
+}
+function scrollThumbIntoView() {
+  const t = [...document.querySelectorAll('.thumb')].find(t => t.dataset.name === cur);
+  if (t) t.scrollIntoView({ block: 'nearest' });
+}
+function renderCounter() {
+  const list = filtered(), i = list.findIndex(x => x.name === cur);
+  $('#pos').textContent = i >= 0 ? i + 1 : (list.length ? '–' : 0);
+  $('#tot').textContent = list.length;
+  if (PROJ && PROJ.open) {
+    const parts = PROJ.images_dir.split(/[\\/]/).filter(Boolean);
+    $('#folder').textContent = 'Folder: ' + (parts[parts.length - 1] || PROJ.images_dir);
+    $('#folder').title = PROJ.images_dir;
+  }
+}
+function renderReviewButtons() {
+  const it = curInfo();
+  const approved = it && it.status === 'reviewed';
+  $('#approveBtn').classList.toggle('done', !!approved);
+  $('#approveBtn').textContent = approved ? '✓ Approved (R = next)' : '✓ Approve (R)';
+  showFlag(it);
+  $('#dirtyNote').textContent = dirty ? 'Unsaved changes · saves when you move on (or press S)' : '';
+}
+
+// ======================= left panel =======================
+function setTab(which) {
+  $('#tabClasses').classList.toggle('on', which === 'classes');
+  $('#tabBoxes').classList.toggle('on', which === 'boxes');
+  $('#panelClasses').classList.toggle('hide', which !== 'classes');
+  $('#panelBoxes').classList.toggle('hide', which !== 'boxes');
+}
+$('#tabClasses').onclick = () => setTab('classes');
+$('#tabBoxes').onclick = () => setTab('boxes');
+function renderClasses() {
+  const el = $('#panelClasses'); el.innerHTML = '';
+  if (!S.classes.length) {
+    el.innerHTML = `<div class="empty">No SKUs yet. <a href="#" id="addSkuLink">Add SKUs</a> to start labeling.</div>`;
+    const l = $('#addSkuLink'); if (l) l.onclick = e => { e.preventDefault(); openSkus(); };
+    return;
+  }
+  const counts = {}; boxes.forEach(b => counts[b.cls] = (counts[b.cls] || 0) + 1);
+  S.classes.forEach((c, i) => {
     const d = document.createElement('div');
-    d.className = 'item' + (it.name === cur ? ' active' : '');
-    d.innerHTML = `<span class="dot s-${it.status}"></span><span class="name"></span><span class="n">${it.boxes || ''}</span>`;
-    d.querySelector('.name').textContent = it.name;
-    d.title = it.note || it.status;
-    d.onclick = () => openImage(it.name);
+    d.className = 'crow' + (i === curClass ? ' cur' : '');
+    d.innerHTML = `<span class="key">${i < 9 ? i + 1 : ''}</span><span class="dot" style="background:${color(i)}"></span><span class="nm"></span><span class="cnt">${counts[i] || 0}</span>`;
+    d.querySelector('.nm').textContent = c;
+    const p = (S.class_prompts || [])[i] || '', ds = (S.class_descs || [])[i] || '';
+    d.title = [`ID ${i}`, p && `Detector prompt: ${p}`, ds && `Description: ${ds}`, 'Click: draw with this class · Double-click: edit'].filter(Boolean).join('\n');
+    d.onclick = () => pickClass(i);
+    d.ondblclick = () => openSkus(i);
+    el.appendChild(d);
+  });
+  // Boxes whose class ID isn't in the list (e.g. old labels with no class list yet)
+  const unknown = Object.keys(counts).filter(k => +k >= S.classes.length);
+  if (unknown.length) {
+    const d = document.createElement('div'); d.className = 'empty';
+    d.textContent = `⚠ ${unknown.map(k => counts[k]).reduce((a, b) => a + b, 0)} box(es) use class IDs not in your list (${unknown.join(', ')}). Add SKUs so the IDs match.`;
     el.appendChild(d);
   }
 }
-function renderClasses() {
-  const el = $('#classes'); el.innerHTML = '';
-  S.classes.forEach((c, i) => {
-    const d = document.createElement('div');
-    d.className = 'cls' + (i === curClass ? ' cur' : '');
-    d.innerHTML = `<span class="k">${i < 9 ? i + 1 : ''}</span><span class="sw" style="background:${color(i)}"></span><span></span>`;
-    d.lastChild.textContent = `${i}: ${c}`;
-    d.onclick = () => { curClass = i; if (sel >= 0 && boxes[sel].cls !== i) { pushUndo(); boxes[sel].cls = i; markDirty(); } renderClasses(); };
-    d.ondblclick = async () => {
-      const n = prompt('Rename class (ID stays the same)', c);
-      if (n) { await api('/api/classes', { rename: i, name: n }); refresh(); }
-    };
-    el.appendChild(d);
-  });
+function pickClass(i) {
+  curClass = i;
+  if (sel >= 0 && boxes[sel].cls !== i) { pushUndo(); boxes[sel].cls = i; markDirty(); }
+  renderClasses();
 }
 function renderBoxes() {
-  const el = $('#boxes'); el.innerHTML = '';
+  const el = $('#panelBoxes'); el.innerHTML = '';
+  if (!boxes.length) el.innerHTML = '<div class="empty">No boxes. Drag on the image to draw one, or use ✨ Find objects with AI.</div>';
   boxes.forEach((b, i) => {
     const d = document.createElement('div');
-    d.className = 'box' + (i === sel ? ' sel' : '');
-    const opts = S.classes.map((c, k) => `<option value="${k}" ${k === b.cls ? 'selected' : ''}>${k}: ${c.replace(/</g, '&lt;')}</option>`).join('');
-    d.innerHTML = `<span class="sw" style="background:${color(b.cls)}"></span><select>${opts}</select>
-      <button title="Show/hide">${hidden.has(i) ? '◌' : '●'}</button><button title="Delete">✕</button>`;
+    d.className = 'brow' + (i === sel ? ' sel' : '');
+    const opts = S.classes.map((c, k) => `<option value="${k}" ${k === b.cls ? 'selected' : ''}>${esc(c)}</option>`).join('')
+      + (b.cls >= S.classes.length ? `<option selected>ID ${b.cls} (unknown)</option>` : '');
+    d.innerHTML = `<span class="dot" style="background:${color(b.cls)}"></span><select>${opts}</select>
+      <button class="ghost" title="Show/hide">${hidden.has(i) ? '◌' : '👁'}</button><button class="ghost" title="Delete">✕</button>`;
     const [s, eye, del] = [d.querySelector('select'), ...d.querySelectorAll('button')];
-    s.onchange = () => { pushUndo(); b.cls = +s.value; markDirty(); };
+    s.onchange = () => { pushUndo(); b.cls = +s.value; s.blur(); markDirty(); };
     eye.onclick = () => { hidden.has(i) ? hidden.delete(i) : hidden.add(i); renderBoxes(); draw(); };
     del.onclick = () => { pushUndo(); boxes.splice(i, 1); sel = -1; hidden.clear(); markDirty(); };
     d.onmouseenter = () => { sel = i; draw(); };
     d.onclick = e => { if (e.target === d) { sel = i; renderBoxes(); draw(); } };
     el.appendChild(d);
   });
-  const it = S.images.find(i => i.name === cur);
+  $('#boxCount').textContent = boxes.length;
+  const it = curInfo();
   $('#note').textContent = it && it.note ? it.note : '';
+  renderClasses(); renderReviewButtons();
 }
 
-// ---------------- image & labels ----------------
+// ======================= image & labels =======================
 async function openImage(name) {
   if (dirty) await save('edited');
-  cur = name; sel = -1; hidden.clear(); solo = false;
-  $('#imgname').textContent = name;
+  cur = name; sel = -1; hidden.clear(); solo = false; $('#soloBtn').classList.remove('on');
+  $('#fname').textContent = name; $('#fname').title = name;
+  $('#emptyStage').classList.add('hide');
   img = new Image();
   img.onload = () => { fit(); draw(); };
   img.src = '/api/image/' + encodeURIComponent(name);
   await loadLabels(name);
-  renderList();
+  renderThumbs(); renderCounter(); scrollThumbIntoView();
 }
 async function loadLabels(name) {
-  boxes = await api('/api/labels/' + encodeURIComponent(name));
+  const r = await api('/api/labels/' + encodeURIComponent(name));
+  boxes = Array.isArray(r) ? r : [];
   dirty = false; resetHistory(); renderBoxes(); draw();
 }
 async function save(status) {
@@ -250,72 +650,72 @@ async function save(status) {
   dirty = false; await refresh();
 }
 function markDirty() { dirty = true; renderBoxes(); draw(); }
-
-// ---------------- undo / redo ----------------
-const snap = () => JSON.stringify(boxes);
-function pushUndo(state = snap()) {
-  undoStack.push(state); if (undoStack.length > 200) undoStack.shift();
-  redoStack = [];
-}
-function resetHistory() { undoStack = []; redoStack = []; }
-function undo() {
-  if (!undoStack.length) return;
-  redoStack.push(snap()); boxes = JSON.parse(undoStack.pop());
-  sel = -1; hidden.clear(); markDirty();
-}
-function redo() {
-  if (!redoStack.length) return;
-  undoStack.push(snap()); boxes = JSON.parse(redoStack.pop());
-  sel = -1; hidden.clear(); markDirty();
-}
 function step(d) {
   const list = filtered(); if (!list.length) return;
   let i = list.findIndex(x => x.name === cur);
-  i = Math.max(0, Math.min(list.length - 1, i + d));
+  i = i < 0 ? 0 : Math.max(0, Math.min(list.length - 1, i + d));
   openImage(list[i].name);
 }
-
-// ---------------- canvas ----------------
-function resize() {
-  const r = cv.getBoundingClientRect();
-  cv.width = r.width * devicePixelRatio; cv.height = r.height * devicePixelRatio;
-  draw();
+async function approveNext() {
+  if (!cur) return;
+  await save('reviewed');
+  const list = filtered(), i = list.findIndex(x => x.name === cur);
+  if (i >= 0 && i < list.length - 1) openImage(list[i + 1].name);
+  else if (i === -1 && list.length) openImage(list[0].name);   // approved image left the filter
 }
+
+// ======================= undo / redo =======================
+const snap = () => JSON.stringify(boxes);
+function pushUndo(state = snap()) { undoStack.push(state); if (undoStack.length > 200) undoStack.shift(); redoStack = []; }
+function resetHistory() { undoStack = []; redoStack = []; }
+function undo() { if (!undoStack.length) return; redoStack.push(snap()); boxes = JSON.parse(undoStack.pop()); sel = -1; hidden.clear(); markDirty(); }
+function redo() { if (!redoStack.length) return; undoStack.push(snap()); boxes = JSON.parse(redoStack.pop()); sel = -1; hidden.clear(); markDirty(); }
+function deleteSelected() { if (sel >= 0) { pushUndo(); boxes.splice(sel, 1); sel = -1; hidden.clear(); markDirty(); } }
+
+// ======================= canvas =======================
+function resize() { const r = cv.getBoundingClientRect(); cv.width = r.width * devicePixelRatio; cv.height = r.height * devicePixelRatio; draw(); }
 function fit() {
   if (!img.naturalWidth) return;
   const W = cv.width, H = cv.height;
-  view.scale = Math.min(W / img.naturalWidth, H / img.naturalHeight) * 0.96;
+  view.scale = Math.min(W / img.naturalWidth, H / img.naturalHeight) * 0.92;
   view.ox = (W - img.naturalWidth * view.scale) / 2;
   view.oy = (H - img.naturalHeight * view.scale) / 2;
 }
-// normalized <-> canvas pixels
+function zoomBy(k, cx = cv.width / 2, cy = cv.height / 2) {
+  view.ox = cx - (cx - view.ox) * k; view.oy = cy - (cy - view.oy) * k; view.scale *= k; draw();
+}
 const toC = (x, y) => [view.ox + x * img.naturalWidth * view.scale, view.oy + y * img.naturalHeight * view.scale];
 const toN = (cx, cy) => [(cx - view.ox) / (img.naturalWidth * view.scale), (cy - view.oy) / (img.naturalHeight * view.scale)];
-function evPos(e) {
-  const r = cv.getBoundingClientRect();
-  return [(e.clientX - r.left) * devicePixelRatio, (e.clientY - r.top) * devicePixelRatio];
-}
+function evPos(e) { const r = cv.getBoundingClientRect(); return [(e.clientX - r.left) * devicePixelRatio, (e.clientY - r.top) * devicePixelRatio]; }
 function draw() {
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.clearRect(0, 0, cv.width, cv.height);
   if (!img.naturalWidth) return;
+  const fitScale = Math.min(cv.width / img.naturalWidth, cv.height / img.naturalHeight) * 0.92;
+  $('#zoomPct').textContent = Math.round(100 * view.scale / fitScale) + '%';
   ctx.imageSmoothingEnabled = view.scale < 2;
+  ctx.filter = `brightness(${$('#bri').value}) contrast(${$('#con').value})`;
   ctx.drawImage(img, view.ox, view.oy, img.naturalWidth * view.scale, img.naturalHeight * view.scale);
-  const lw = Math.max(1.5, 2 * devicePixelRatio);
+  ctx.filter = 'none';
+  if (!$('#showAnn').checked) return;
+  const lw = Math.max(1.5, 2 * devicePixelRatio), dpr = devicePixelRatio;
   boxes.forEach((b, i) => {
     if (hidden.has(i)) return;
     if (solo && sel >= 0 && i !== sel) return;
     const [x1, y1] = toC(b.x1, b.y1), [x2, y2] = toC(b.x2, b.y2);
-    ctx.strokeStyle = color(b.cls); ctx.lineWidth = i === sel ? lw * 1.8 : lw;
-    if (i === sel) { ctx.fillStyle = color(b.cls).replace(')', ' / 0.15)'); ctx.fillRect(x1, y1, x2 - x1, y2 - y1); }
+    const col = color(b.cls);
+    if (i === sel || $('#fillBoxes').checked) { ctx.fillStyle = col.replace(')', ` / ${i === sel ? 0.22 : 0.12})`); ctx.fillRect(x1, y1, x2 - x1, y2 - y1); }
+    ctx.strokeStyle = col; ctx.lineWidth = i === sel ? lw * 1.8 : lw;
     ctx.strokeRect(x1, y1, x2 - x1, y2 - y1);
-    if (!$('#showNames').checked) { drawHandles(i, x1, y1, x2, y2); return; }
-    const label = `${S.classes[b.cls] ?? b.cls}`;
-    ctx.font = `${11 * devicePixelRatio}px system-ui`;
-    const tw = ctx.measureText(label).width + 6 * devicePixelRatio;
-    ctx.fillStyle = color(b.cls); ctx.fillRect(x1, y1 - 15 * devicePixelRatio, tw, 15 * devicePixelRatio);
-    ctx.fillStyle = '#111'; ctx.fillText(label, x1 + 3 * devicePixelRatio, y1 - 4 * devicePixelRatio);
-    drawHandles(i, x1, y1, x2, y2);
+    if ($('#showNames').checked) {
+      const label = `${S.classes[b.cls] ?? 'ID ' + b.cls}`;
+      ctx.font = `600 ${11 * dpr}px system-ui`;
+      const tw = ctx.measureText(label).width + 8 * dpr;
+      ctx.fillStyle = col; ctx.fillRect(x1, y1 - 16 * dpr, tw, 16 * dpr);
+      ctx.fillStyle = '#fff'; ctx.fillText(label, x1 + 4 * dpr, y1 - 4.5 * dpr);
+    }
+    if (i === sel) { const s = 4 * dpr; ctx.fillStyle = '#fff'; ctx.strokeStyle = col; ctx.lineWidth = dpr;
+      for (const [hx, hy] of [[x1, y1], [x2, y1], [x1, y2], [x2, y2]]) { ctx.fillRect(hx - s, hy - s, 2 * s, 2 * s); ctx.strokeRect(hx - s, hy - s, 2 * s, 2 * s); } }
   });
   if (drag && drag.mode === 'new') {
     const [x1, y1] = toC(drag.a[0], drag.a[1]), [x2, y2] = toC(drag.b[0], drag.b[1]);
@@ -323,14 +723,8 @@ function draw() {
     ctx.strokeRect(x1, y1, x2 - x1, y2 - y1); ctx.setLineDash([]);
   }
 }
-function drawHandles(i, x1, y1, x2, y2) {
-  if (i !== sel) return;
-  const s = 4 * devicePixelRatio;
-  ctx.fillStyle = '#fff';
-  for (const [hx, hy] of [[x1, y1], [x2, y1], [x1, y2], [x2, y2]]) ctx.fillRect(hx - s, hy - s, 2 * s, 2 * s);
-}
 function hitCorner(p) {
-  if (sel < 0) return null;
+  if (sel < 0 || !boxes[sel]) return null;
   const b = boxes[sel], tol = 9 * devicePixelRatio;
   const cs = { tl: [b.x1, b.y1], tr: [b.x2, b.y1], bl: [b.x1, b.y2], br: [b.x2, b.y2] };
   for (const k in cs) { const [cx, cy] = toC(...cs[k]); if (Math.abs(cx - p[0]) < tol && Math.abs(cy - p[1]) < tol) return k; }
@@ -340,22 +734,30 @@ function hitBox(n) {
   let best = -1, area = 1e9;
   boxes.forEach((b, i) => {
     if (hidden.has(i) || (solo && sel >= 0 && i !== sel)) return;
-    const [x1, x2] = [Math.min(b.x1, b.x2), Math.max(b.x1, b.x2)], [y1, y2] = [Math.min(b.y1, b.y2), Math.max(b.y1, b.y2)];
-    if (n[0] >= x1 && n[0] <= x2 && n[1] >= y1 && n[1] <= y2) {
-      const a = (x2 - x1) * (y2 - y1); if (i === sel) { best = i; area = -1; } else if (a < area) { best = i; area = a; }
+    if (n[0] >= b.x1 && n[0] <= b.x2 && n[1] >= b.y1 && n[1] <= b.y2) {
+      const a = (b.x2 - b.x1) * (b.y2 - b.y1); if (i === sel) { best = i; area = -1; } else if (a < area) { best = i; area = a; }
     }
   });
   return best;
 }
+function setTool(t) {
+  tool = t;
+  $('#toolBox').classList.toggle('on', t === 'box'); $('#toolPan').classList.toggle('on', t === 'pan');
+  cv.classList.toggle('pan', t === 'pan' || spaceHeld);
+}
 cv.addEventListener('contextmenu', e => e.preventDefault());
 cv.addEventListener('mousedown', e => {
   if (!img.naturalWidth) return;
+  closePops();
   const p = evPos(e), n = toN(...p);
-  if (e.button === 2 || e.button === 1) { drag = { mode: 'pan', p, ox: view.ox, oy: view.oy }; return; }
+  if (e.button === 2 || e.button === 1 || tool === 'pan' || spaceHeld || !$('#showAnn').checked) {
+    drag = { mode: 'pan', p, ox: view.ox, oy: view.oy }; cv.classList.add('panning'); return;
+  }
   const corner = hitCorner(p);
   if (corner) { drag = { mode: 'resize', corner, before: snap() }; return; }
   const hit = hitBox(n);
   if (hit >= 0) { sel = hit; drag = { mode: 'move', start: n, orig: { ...boxes[hit] }, before: snap() }; renderBoxes(); draw(); return; }
+  if (!S.classes.length) { openSkus(); return; }   // need a class before drawing
   sel = -1; drag = { mode: 'new', a: n, b: n }; renderBoxes(); draw();
 });
 window.addEventListener('mousemove', e => {
@@ -378,6 +780,7 @@ window.addEventListener('mousemove', e => {
 });
 window.addEventListener('mouseup', () => {
   if (!drag) return;
+  cv.classList.remove('panning');
   if (drag.mode === 'new') {
     const [a, b] = [drag.a, drag.b];
     if (Math.abs(a[0] - b[0]) > 0.004 && Math.abs(a[1] - b[1]) > 0.004) {
@@ -386,43 +789,144 @@ window.addEventListener('mouseup', () => {
       sel = boxes.length - 1; dirty = true;
     }
   }
-  if (sel >= 0) { const b = boxes[sel]; [b.x1, b.x2] = [Math.min(b.x1, b.x2), Math.max(b.x1, b.x2)]; [b.y1, b.y2] = [Math.min(b.y1, b.y2), Math.max(b.y1, b.y2)]; }
+  if (sel >= 0 && boxes[sel]) { const b = boxes[sel]; [b.x1, b.x2] = [Math.min(b.x1, b.x2), Math.max(b.x1, b.x2)]; [b.y1, b.y2] = [Math.min(b.y1, b.y2), Math.max(b.y1, b.y2)]; }
   if (drag.before !== undefined && drag.before !== snap()) pushUndo(drag.before);
-  drag = null; renderBoxes(); draw();
+  const wasPan = drag.mode === 'pan';
+  drag = null; if (!wasPan) renderBoxes(); draw();
 });
-cv.addEventListener('wheel', e => {
-  e.preventDefault();
-  const p = evPos(e), k = e.deltaY < 0 ? 1.15 : 1 / 1.15;
-  view.ox = p[0] - (p[0] - view.ox) * k; view.oy = p[1] - (p[1] - view.oy) * k; view.scale *= k; draw();
-}, { passive: false });
+cv.addEventListener('wheel', e => { e.preventDefault(); const p = evPos(e); zoomBy(e.deltaY < 0 ? 1.15 : 1 / 1.15, p[0], p[1]); }, { passive: false });
 
+// ======================= keyboard =======================
+// Dropdowns keep keyboard focus after you pick something, which silently swallowed shortcuts.
+// Let go of focus as soon as a choice is made.
+document.addEventListener('change', e => { if (e.target.tagName === 'SELECT' || e.target.type === 'checkbox') e.target.blur(); });
 window.addEventListener('keydown', e => {
-  if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+  if (['INPUT', 'SELECT', 'TEXTAREA'].includes(e.target.tagName)) {
+    if (e.key === 'Escape') e.target.blur();
+    return;
+  }
+  if (anyModalOpen()) {
+    if (e.key === 'Escape' && !$('#startModal').classList.contains('hidden') && !(PROJ && PROJ.open)) return;
+    if (e.key === 'Escape') closeModals();
+    return;   // editor shortcuts are off while a popup window is open
+  }
   const k = e.key.toLowerCase(), mod = e.ctrlKey || e.metaKey;
+  if (k === ' ') { e.preventDefault(); if (!spaceHeld) { spaceHeld = true; cv.classList.add('pan'); } return; }
   if (mod && k === 'z' && !e.shiftKey) { e.preventDefault(); undo(); }
   else if (mod && (k === 'y' || (k === 'z' && e.shiftKey))) { e.preventDefault(); redo(); }
   else if (k === 's') { e.preventDefault(); save('edited'); }
   else if (mod) return;
-  else if (k === 'delete' || k === 'backspace') { if (sel >= 0) { pushUndo(); boxes.splice(sel, 1); sel = -1; hidden.clear(); markDirty(); } }
-  else if (k === 'r') { save('reviewed').then(() => step(1)); }
-  else if (k === 'd') step(1);
-  else if (k === 'a') step(-1);
-  else if (k === 'h') { solo = !solo; draw(); }
+  else if (k === 'delete' || k === 'backspace') deleteSelected();
+  else if (k === 'r') approveNext();
+  else if (k === 'g') toggleFlag();
+  else if (k === 'd' || k === 'arrowright') step(1);
+  else if (k === 'a' || k === 'arrowleft') step(-1);
+  else if (k === 'b') setTool('box');
+  else if (k === 'v') setTool('pan');
+  else if (k === 'h') toggleSolo();
   else if (k === 'f') { fit(); draw(); }
   else if (k === 'l') { $('#showNames').checked = !$('#showNames').checked; draw(); }
-  else if (k === 'escape') { sel = -1; renderBoxes(); draw(); }
-  else if (/^[1-9]$/.test(k)) {
-    const c = +k - 1; if (c >= S.classes.length) return;
-    curClass = c; if (sel >= 0 && boxes[sel].cls !== c) { pushUndo(); boxes[sel].cls = c; markDirty(); } renderClasses();
-  }
+  else if (k === 'escape') { sel = -1; closePops(); renderBoxes(); draw(); }
+  else if (/^[1-9]$/.test(k)) { const c = +k - 1; if (c < S.classes.length) pickClass(c); }
 });
+window.addEventListener('keyup', e => { if (e.key === ' ') { spaceHeld = false; cv.classList.toggle('pan', tool === 'pan'); } });
 
-// ---------------- buttons ----------------
-function runOpts(extra) { return { model: $('#model').value, grid: $('#grid').checked, extra: $('#extra').value, ...extra }; }
+// ======================= center controls =======================
+function toggleSolo() { solo = !solo; $('#soloBtn').classList.toggle('on', solo); draw(); }
+$('#toolBox').onclick = () => setTool('box');
+$('#toolPan').onclick = () => setTool('pan');
+$('#undo').onclick = undo; $('#redo').onclick = redo;
+$('#soloBtn').onclick = toggleSolo;
+$('#delBtn').onclick = deleteSelected;
+$('#zoomIn').onclick = () => zoomBy(1.25);
+$('#zoomOut').onclick = () => zoomBy(1 / 1.25);
+$('#zoomFit').onclick = () => { fit(); draw(); };
+function closePops() { $('#dispPop').classList.add('hide'); $('#keysPop').classList.add('hide'); $('#dispBtn').classList.remove('on'); $('#keysBtn').classList.remove('on'); }
+function togglePop(pop, btn) { const open = pop.classList.contains('hide'); closePops(); if (open) { pop.classList.remove('hide'); btn.classList.add('on'); } }
+$('#dispBtn').onclick = () => togglePop($('#dispPop'), $('#dispBtn'));
+$('#keysBtn').onclick = () => togglePop($('#keysPop'), $('#keysBtn'));
+for (const id of ['bri', 'con']) $('#' + id).oninput = () => { $('#' + (id === 'bri' ? 'briVal' : 'conVal')).textContent = (+$('#' + id).value).toFixed(2); draw(); };
+for (const id of ['showAnn', 'showNames', 'fillBoxes']) $('#' + id).onchange = e => { e.target.blur(); draw(); };
+$('#dispReset').onclick = () => { $('#bri').value = $('#con').value = 1; $('#briVal').textContent = $('#conVal').textContent = '1.00';
+  $('#showAnn').checked = $('#showNames').checked = true; $('#fillBoxes').checked = false; draw(); };
+$('#copyName').onclick = () => { if (cur && navigator.clipboard) navigator.clipboard.writeText(cur); };
+
+// ======================= right controls =======================
+$('#prevBtn').onclick = () => step(-1);
+$('#nextBtn').onclick = () => step(1);
+$('#approveBtn').onclick = approveNext;
+$('#filter').onchange = () => { thumbSig = ''; renderThumbs(); renderCounter();
+  const list = filtered(); if (list.length && !list.some(i => i.name === cur)) openImage(list[0].name); };
+
+// ---- flag for later: separate from approve, so an approved image can still be flagged ----
+let flagShownFor = null;
+function showFlag(it) {
+  if (flagShownFor === cur && document.activeElement === $('#flagNote')) return;  // don't overwrite while typing
+  flagShownFor = cur;
+  const on = !!(it && it.flag);
+  $('#flagBtn').classList.toggle('on', on);
+  $('#flagBtn').textContent = on ? '🚩 Flagged (G to unflag)' : '🚩 Flag for later (G)';
+  $('#flagMore').classList.toggle('hide', !on);
+  $('#flagBanner').classList.toggle('hide', !on);
+  $('#flagBanner').textContent = on ? `🚩 Flagged${it.flag_reason ? ': ' + it.flag_reason : ''}` : '';
+  $('#flagReason').value = on ? (it.flag_reason || '') : '';
+  $('#flagNote').value = on ? (it.flag_note || '') : '';
+}
+async function saveFlag(on) {
+  if (!cur) return;
+  if (!on) { $('#flagReason').value = ''; $('#flagNote').value = ''; }
+  await api('/api/flag/' + encodeURIComponent(cur), { flag: on, reason: $('#flagReason').value, note: $('#flagNote').value.trim() });
+  flagShownFor = null; await refresh();
+}
+function toggleFlag() { const it = curInfo(); if (it) saveFlag(!it.flag); }
+$('#flagBtn').onclick = () => { $('#flagBtn').blur(); toggleFlag(); };
+$('#flagReason').onchange = () => saveFlag(true);
+$('#flagNote').onchange = () => saveFlag(true);
+$('#flagNote').onkeydown = e => { if (e.key === 'Enter') e.target.blur(); };
+
+// ======================= AI backends =======================
+function runOpts(extra) {
+  return { backend: $('#backend').value, model: $('#model').value,
+    ollama_model: $('#ollamaModel').value.trim(), gemini_model: $('#geminiModel').value.trim(),
+    gdino_model: $('#gdinoModel').value, yolo_weights: $('#yoloWeights').value.trim(),
+    threshold: +$('#threshold').value || 0.3, grid: $('#grid').checked, extra: $('#extra').value, ...extra };
+}
+let AV = null;
+const VLM = ['claude', 'ollama', 'gemini'];
+function updateBackendUI() {
+  const b = $('#backend').value;
+  document.querySelectorAll('.opt').forEach(el => el.classList.toggle('hide', !el.dataset.for.split(' ').includes(b)));
+  const canRefine = VLM.includes(b);
+  $('#refineThis').disabled = $('#refineAuto').disabled = !canRefine;
+  $('#refineThis').title = canRefine ? 'Ask the AI to review and fix the boxes on this image' : 'Refine needs Claude, Gemini or a local VLM';
+  let note = '';
+  if (AV) {
+    if (b === 'claude' && !AV.claude) note = '⚠ claude CLI not found';
+    if (b === 'gemini') note = AV.gemini_key ? (AV.gemini_models && !AV.gemini_models.length ? '⚠ key found but no models listed' : '') : '⚠ no GEMINI_API_KEY in .env';
+    if (b === 'ollama') note = AV.ollama === null ? '⚠ Ollama not running' : (AV.ollama.length ? '' : '⚠ no Ollama models');
+    if (b === 'grounding_dino' && !AV.grounding_dino) note = '⚠ pip install torch transformers';
+    if (b === 'yolo_world' && !AV.yolo_world) note = '⚠ pip install ultralytics';
+    if (!VLM.includes(b) && (AV.grounding_dino || AV.yolo_world) && !AV.cuda && !note) note = 'CPU only (slow)';
+  }
+  $('#backendNote').textContent = note;
+  try { localStorage.setItem('annot_backend', b); localStorage.setItem('annot_gemini_model', $('#geminiModel').value); } catch (e) {}
+}
+async function loadBackends() {
+  AV = await api('/api/backends');
+  $('#ollamaList').innerHTML = (AV.ollama || []).map(m => `<option value="${esc(m)}">`).join('');
+  if (AV.gemini_models && AV.gemini_models.length) $('#geminiList').innerHTML = AV.gemini_models.map(m => `<option value="${esc(m)}">`).join('');
+  if (AV.ollama && AV.ollama.length && !AV.ollama.includes($('#ollamaModel').value)) {
+    const vl = AV.ollama.find(m => /vl|llava|gemma3|minicpm|moondream/i.test(m)); if (vl) $('#ollamaModel').value = vl;
+  }
+  updateBackendUI();
+}
+$('#backend').onchange = updateBackendUI;
+$('#geminiModel').onchange = updateBackendUI;
 async function startRun(body) {
+  if (!S.classes.length) { openSkus(); return; }
   if (dirty) await save('edited');
   const r = await api('/api/run', runOpts(body));
-  if (!r.ok) alert('A job is already running. Stop it first.');
+  if (!r.ok) alert(r.error || 'A job is already running. Stop it first.');
   refresh();
 }
 $('#runUnlabeled').onclick = () => startRun({ mode: 'annotate', target: 'unlabeled' });
@@ -430,19 +934,75 @@ $('#runThis').onclick = () => cur && startRun({ mode: 'annotate', target: [cur] 
 $('#refineThis').onclick = () => cur && startRun({ mode: 'refine', target: [cur] });
 $('#refineAuto').onclick = () => startRun({ mode: 'refine', target: 'auto' });
 $('#stop').onclick = () => api('/api/stop', {}).then(refresh);
-$('#save').onclick = () => save('edited');
-$('#review').onclick = () => save('reviewed').then(() => step(1));
-$('#filter').onchange = renderList;
-$('#undo').onclick = undo;
-$('#redo').onclick = redo;
 
-// ---------------- health check ----------------
-const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+// ======================= modals =======================
+function closeModals() {
+  for (const id of ['skuModal', 'healthModal', 'exportModal']) $('#' + id).classList.add('hidden');
+  if (PROJ && PROJ.open) $('#startModal').classList.add('hidden');
+  $('#skuIntro').classList.add('hide'); $('#skuClose').textContent = 'Close';
+}
+for (const id of ['skuModal', 'healthModal', 'exportModal']) $('#' + id).addEventListener('mousedown', e => { if (e.target.id === id) closeModals(); });
+
+// ---- SKU manager ----
+function flashSaved() { const el = $('#skuSaved'); el.classList.add('show'); setTimeout(() => el.classList.remove('show'), 900); }
+function renderSkus() {
+  const tb = $('#skuRows'); tb.innerHTML = '';
+  S.classes.forEach((c, i) => {
+    const tr = document.createElement('tr'); tr.id = 'sku-' + i;
+    tr.innerHTML = `<td><span class="dot" style="display:inline-block;background:${color(i)}"></span> ${i}</td>
+      <td><input data-f="name"></td><td><input data-f="prompt" placeholder="${esc(c.replace(/_/g, ' '))}"></td>
+      <td><textarea data-f="description" placeholder="what it looks like"></textarea></td>`;
+    tr.querySelector('[data-f=name]').value = c;
+    tr.querySelector('[data-f=prompt]').value = (S.class_prompts || [])[i] || '';
+    tr.querySelector('[data-f=description]').value = (S.class_descs || [])[i] || '';
+    tr.querySelectorAll('[data-f]').forEach(el => el.onchange = async () => {
+      const body = { update: i }; body[el.dataset.f] = el.value;
+      if (el.dataset.f === 'name' && !el.value.trim()) { el.value = S.classes[i]; return; }
+      await api('/api/classes', body); await refresh(); flashSaved();
+      if (el.dataset.f === 'name') el.value = S.classes[i];  // show the cleaned name (spaces -> _)
+    });
+    tb.appendChild(tr);
+  });
+}
+async function openSkus(focusIdx, intro = false) {
+  if (dirty) await save('edited');
+  await refresh(); renderSkus();
+  $('#skuIntro').classList.toggle('hide', !intro);
+  $('#skuClose').textContent = intro ? 'Start labeling →' : 'Close';
+  $('#skuModal').classList.remove('hidden');
+  if (focusIdx !== undefined) {
+    const row = $('#sku-' + focusIdx);
+    if (row) { row.scrollIntoView({ block: 'center' }); row.querySelector('[data-f=description]').focus(); }
+  } else $('#newSkuName').focus();
+}
+$('#skuBtn').onclick = () => openSkus();
+$('#skuClose').onclick = closeModals;
+$('#newSkuAdd').onclick = async () => {
+  const name = $('#newSkuName').value.trim(); if (!name) { $('#newSkuName').focus(); return; }
+  const clean = name.split(/\s+/).join('_');
+  if (S.classes.includes(clean)) { alert(`"${clean}" already exists.`); return; }
+  // Trust the server's reply (the updated class list), not the shared state
+  const list = await api('/api/classes', { name, prompt: $('#newSkuPrompt').value, description: $('#newSkuDesc').value });
+  await refresh();
+  if (!list.includes(clean)) { alert(`Couldn't add "${clean}".`); return; }
+  $('#newSkuName').value = $('#newSkuPrompt').value = $('#newSkuDesc').value = '';
+  renderSkus(); flashSaved(); $('#newSkuName').focus();
+};
+$('#newSkuName').onkeydown = e => { if (e.key === 'Enter') $('#newSkuAdd').click(); };
+
+// ---- export ----
+$('#exportBtn').onclick = () => $('#exportModal').classList.remove('hidden');
+$('#exportClose').onclick = closeModals;
+const expQs = () => 'reviewed=' + ($('#onlyReviewed').checked ? 1 : 0) + '&skipflagged=' + ($('#skipFlagged').checked ? 1 : 0);
+$('#expYolo').onclick = async () => { if (dirty) await save('edited'); location.href = '/api/export/yolo?' + expQs(); };
+$('#expCoco').onclick = async () => { if (dirty) await save('edited'); location.href = '/api/export/coco?' + expQs(); };
+
+// ---- health check ----
 function showSet(label, list) {
   custom = { label, set: new Set(list) };
   const o = $('#customOpt'); o.hidden = false; o.textContent = `${label} (${list.length})`;
-  $('#filter').value = 'custom'; renderList();
-  $('#healthModal').classList.add('hidden');
+  $('#filter').value = 'custom'; thumbSig = ''; renderThumbs(); renderCounter();
+  closeModals();
   if (list.length) openImage(list[0]);
 }
 async function loadHealth() {
@@ -458,61 +1018,133 @@ async function loadHealth() {
     <div class="card"><div class="v">${s.classes_with_data}/${s.classes}</div><div class="l">classes with data</div></div>
     <div class="card"><div class="v ${imb > 10 ? 'bad' : imb > 3 ? 'warn' : ''}">${imb || '-'}×</div><div class="l">imbalance (most / fewest boxes)</div></div>
   </div>
-  <div class="l" style="color:var(--muted);margin-top:6px">Status: ${esc(st)}</div>
-  <div class="two">
-  <div><h3>Classes (click a row to see its images)</h3>
+  <div class="muted" style="margin-top:6px;font-size:12px">Status: ${esc(st)}</div>
+  <div class="two"><div><h3>Classes (click a row to see its images)</h3>
   <table class="ht"><tr><th>ID</th><th>Class</th><th>Boxes</th><th style="width:30%"></th><th>Images</th><th>Avg size</th><th></th></tr>`;
   for (const c of h.classes) {
-    html += `<tr class="click" data-cls="${c.id}"><td>${c.id}</td><td><span class="sw" style="display:inline-block;background:${color(c.id)}"></span> ${esc(c.name)}</td>
+    html += `<tr class="click" data-cls="${c.id}"><td>${c.id}</td><td><span class="dot" style="display:inline-block;background:${color(c.id)}"></span> ${esc(c.name)}</td>
       <td>${c.boxes}</td><td><div class="bar" style="width:${100 * c.boxes / maxBoxes}%;background:${color(c.id)}"></div></td>
       <td>${c.images}</td><td>${c.avg_area_pct}%</td><td class="${c.boxes ? 'warn' : 'bad'}">${esc(c.warn)}</td></tr>`;
   }
-  html += `</table>
-  <h3>Issues (click to review)</h3><table class="ht">`;
+  html += `</table><h3>Issues (click to review)</h3><table class="ht">`;
   for (const is of h.issues) {
     html += `<tr class="${is.count ? 'click' : ''}" data-issue="${is.key}"><td>${esc(is.label)}</td>
       <td class="${is.count ? (['errors', 'bad_class', 'duplicates'].includes(is.key) ? 'bad' : 'warn') : ''}" style="text-align:right">${is.count}</td></tr>`;
   }
   html += `</table></div><div><h3>Box sizes (% of image area)</h3><table class="ht">`;
   const maxSz = Math.max(1, ...Object.values(h.sizes));
-  for (const [k, v] of Object.entries(h.sizes)) {
-    html += `<tr><td>${k}</td><td style="width:45%"><div class="bar" style="width:${100 * v / maxSz}%"></div></td><td style="text-align:right">${v}</td></tr>`;
-  }
-  html += `</table><h3>Where boxes sit (box centers)</h3><canvas id="heat" width="240" height="240" style="width:240px;height:240px;border-radius:6px;background:#111"></canvas>
-  <div style="color:var(--muted);font-size:12px">Bright = many boxes. A strong hotspot means the model may struggle with objects elsewhere in the frame.</div></div></div>`;
+  for (const [k, v] of Object.entries(h.sizes)) html += `<tr><td>${k}</td><td style="width:45%"><div class="bar" style="width:${100 * v / maxSz}%"></div></td><td style="text-align:right">${v}</td></tr>`;
+  html += `</table><h3>Where boxes sit (box centers)</h3><canvas id="heat" width="240" height="240" style="width:240px;height:240px;border-radius:8px;background:#f1f3f5"></canvas>
+  <div class="muted" style="font-size:12px">Dark = many boxes. A strong hotspot means the model may struggle with objects elsewhere in the frame.</div></div></div>`;
   $('#healthBody').innerHTML = html;
-
-  const hc = $('#heat').getContext('2d'), g = h.heatmap.length, cell = 240 / g;
-  const mx = Math.max(1, ...h.heatmap.flat());
-  h.heatmap.forEach((row, y) => row.forEach((v, x) => {
-    const t = Math.sqrt(v / mx);
-    hc.fillStyle = v ? `rgba(217,119,87,${0.1 + 0.9 * t})` : '#16181d';
-    hc.fillRect(x * cell, y * cell, cell - 1, cell - 1);
-  }));
-  $('#healthBody').querySelectorAll('tr[data-cls]').forEach(tr => tr.onclick = () => {
-    const c = h.classes[+tr.dataset.cls]; showSet(`Class: ${c.name}`, c.image_list);
-  });
-  $('#healthBody').querySelectorAll('tr[data-issue].click').forEach(tr => tr.onclick = () => {
-    const is = h.issues.find(x => x.key === tr.dataset.issue); showSet(is.label, is.images);
-  });
+  const hc = $('#heat').getContext('2d'), g = h.heatmap.length, cell = 240 / g, mx = Math.max(1, ...h.heatmap.flat());
+  h.heatmap.forEach((row, y) => row.forEach((v, x) => { hc.fillStyle = v ? `rgba(217,119,87,${0.15 + 0.85 * Math.sqrt(v / mx)})` : '#f1f3f5'; hc.fillRect(x * cell, y * cell, cell - 1, cell - 1); }));
+  $('#healthBody').querySelectorAll('tr[data-cls]').forEach(tr => tr.onclick = () => { const c = h.classes[+tr.dataset.cls]; showSet(`Class: ${c.name}`, c.image_list); });
+  $('#healthBody').querySelectorAll('tr[data-issue].click').forEach(tr => tr.onclick = () => { const is = h.issues.find(x => x.key === tr.dataset.issue); showSet(is.label, is.images); });
 }
-$('#health').onclick = async () => { if (dirty) await save('edited'); $('#healthModal').classList.remove('hidden'); loadHealth(); };
+$('#health').onclick = async () => { if (!PROJ || !PROJ.open) return; if (dirty) await save('edited'); $('#healthModal').classList.remove('hidden'); loadHealth(); };
 $('#healthRefresh').onclick = loadHealth;
 $('#lowCount').onchange = loadHealth;
-$('#healthClose').onclick = () => $('#healthModal').classList.add('hidden');
-$('#healthModal').onclick = e => { if (e.target.id === 'healthModal') $('#healthModal').classList.add('hidden'); };
-$('#showNames').onchange = e => { e.target.blur(); draw(); };
-$('#addClass').onclick = async () => {
-  const n = $('#newClass').value.trim(); if (!n) return;
-  await api('/api/classes', { name: n }); $('#newClass').value = ''; refresh();
-};
-$('#expYolo').onclick = () => location.href = '/api/export/yolo?reviewed=' + ($('#onlyReviewed').checked ? 1 : 0);
-$('#expCoco').onclick = () => location.href = '/api/export/coco?reviewed=' + ($('#onlyReviewed').checked ? 1 : 0);
-window.addEventListener('beforeunload', e => { if (dirty) { e.preventDefault(); e.returnValue = ''; } });
+$('#healthClose').onclick = closeModals;
 
+// ======================= start page =======================
+let previewTimer = null, lastPreview = null;
+async function showStart() {
+  PROJ = await api('/api/project');
+  $('#startClose').classList.toggle('hide', !PROJ.open);
+  const rec = PROJ.recent || [];
+  $('#recentStep').classList.toggle('hide', !rec.length);
+  $('#recentList').innerHTML = '';
+  rec.forEach(r => {
+    const b = document.createElement('button'); b.textContent = r.images_dir; b.title = `labels: ${r.labels_dir}\nclasses: ${r.classes_file}`;
+    b.onclick = () => { $('#dsPath').value = r.images_dir; $('#dsLabels').value = r.labels_dir; $('#dsClasses').value = r.classes_file; updatePreview(); };
+    $('#recentList').appendChild(b);
+  });
+  if (PROJ.open) { $('#dsPath').value = PROJ.images_dir; $('#dsLabels').value = PROJ.labels_dir; $('#dsClasses').value = PROJ.classes_file; updatePreview(); }
+  $('#startModal').classList.remove('hidden');
+}
+async function updatePreview() {
+  const path = $('#dsPath').value.trim();
+  if (!path) { $('#dsPreview').innerHTML = ''; $('#openDs').disabled = true; return; }
+  const pv = await api('/api/project/check', { images_dir: path, labels_dir: $('#dsLabels').value.trim() || null, classes_file: $('#dsClasses').value.trim() || null });
+  lastPreview = pv;
+  if (!pv.exists) { $('#dsPreview').innerHTML = `<span class="bad">✗ Folder not found.</span>`; $('#openDs').disabled = true; return; }
+  let h = pv.image_count ? `✅ <b>${pv.image_count}</b> images found` : `<span class="warn">⚠ No images directly in this folder (jpg, png, bmp, webp). Pick the folder that contains them.</span>`;
+  h += `<br>Labels: <code>${esc(pv.labels_dir)}</code> ` + (pv.existing_labels ? `· <b>${pv.existing_labels}</b> existing label files will be loaded and shown` : '· none yet (new labels will be saved here)');
+  if (pv.classes_exists) h += `<br>Classes: <code>${esc(pv.classes_file)}</code> · <b>${pv.class_names.length}</b> SKUs (${esc(pv.class_names.slice(0, 6).join(', '))}${pv.class_names.length > 6 ? ', …' : ''})`;
+  else {
+    h += `<br>Classes: <code>${esc(pv.classes_file)}</code> · not created yet`;
+    if (pv.yaml_names && pv.yaml_names.length) h += `<br><label class="chk" style="margin-top:4px"><input type="checkbox" id="importYaml" checked> Import <b>${pv.yaml_names.length}</b> class names from <code>${esc(pv.yaml_file.split(/[\\/]/).pop())}</code> (${esc(pv.yaml_names.slice(0, 5).join(', '))}${pv.yaml_names.length > 5 ? ', …' : ''})</label>`;
+    else if (pv.existing_labels) h += `<br><span class="warn">⚠ Existing labels but no class list: add SKUs in the same ID order the labels use (first = 0).</span>`;
+  }
+  $('#dsPreview').innerHTML = h;
+  $('#openDs').disabled = false;
+}
+for (const id of ['dsPath', 'dsLabels', 'dsClasses']) $('#' + id).oninput = () => { clearTimeout(previewTimer); previewTimer = setTimeout(updatePreview, 350); };
+$('#dsPath').onkeydown = e => { if (e.key === 'Enter' && !$('#openDs').disabled) $('#openDs').click(); };
+$('#startClose').onclick = () => $('#startModal').classList.add('hidden');
+$('#dsBtn').onclick = async () => { if (dirty) await save('edited'); showStart(); };
+
+// ---- folder browser ----
+let bCur = null;
+async function browse(path) {
+  const r = await api('/api/browse?path=' + encodeURIComponent(path || ''));
+  bCur = r;
+  $('#bPath').textContent = r.path; $('#bPath').title = r.path;
+  $('#bCount').textContent = r.image_count ? `${r.image_count} images in this folder` : 'No images directly in this folder';
+  $('#bUse').disabled = false;
+  $('#bUp').disabled = !r.parent;
+  $('#bDrives').innerHTML = (r.drives || []).map(d => `<button data-d="${esc(d)}">${esc(d)}</button>`).join(' ');
+  $('#bDrives').querySelectorAll('button').forEach(b => b.onclick = () => browse(b.dataset.d));
+  const el = $('#bList'); el.innerHTML = '';
+  if (!r.dirs.length) el.innerHTML = '<div class="empty">No sub-folders.</div>';
+  r.dirs.forEach(d => {
+    const row = document.createElement('div'); row.className = 'bdir'; row.textContent = '📁 ' + d;
+    row.onclick = () => browse(r.path.replace(/[\\/]$/, '') + (r.path.includes('\\') ? '\\' : '/') + d);
+    el.appendChild(row);
+  });
+}
+$('#browseBtn').onclick = () => { const b = $('#browser'); b.classList.toggle('hide'); if (!b.classList.contains('hide')) browse($('#dsPath').value.trim()); };
+$('#bUp').onclick = () => bCur && bCur.parent && browse(bCur.parent);
+$('#bHome').onclick = () => browse('');
+$('#bUse').onclick = () => { if (!bCur) return; $('#dsPath').value = bCur.path; $('#dsLabels').value = ''; $('#dsClasses').value = ''; $('#browser').classList.add('hide'); updatePreview(); };
+
+$('#openDs').onclick = async () => {
+  $('#openDs').disabled = true;
+  const r = await api('/api/project/open', { images_dir: $('#dsPath').value.trim(), labels_dir: $('#dsLabels').value.trim() || null,
+    classes_file: $('#dsClasses').value.trim() || null, import_yaml: !!($('#importYaml') && $('#importYaml').checked) });
+  $('#openDs').disabled = false;
+  if (!r.ok) { alert(r.error || 'Could not open that folder.'); return; }
+  await enterDataset(true);
+};
+async function enterDataset(fromStart) {
+  PROJ = await api('/api/project');
+  $('#startModal').classList.add('hidden');
+  $('#dsName').textContent = PROJ.images_dir.split(/[\\/]/).filter(Boolean).pop() || 'dataset';
+  $('#dsBtn').title = 'Dataset: ' + PROJ.images_dir + '\nClick to open another';
+  cur = null; boxes = []; custom = null; $('#customOpt').hidden = true; $('#filter').value = 'all'; thumbSig = ''; lastWorkerDone = -1;
+  img = new Image(); draw();
+  await refresh();
+  const f = filtered();
+  if (f.length) openImage(f[0].name);
+  else { $('#emptyStage').textContent = 'No images in this folder'; $('#emptyStage').classList.remove('hide'); }
+  if (fromStart && !S.classes.length) openSkus(undefined, true);   // step 2: what to detect
+}
+
+// ======================= start up =======================
+window.addEventListener('beforeunload', e => { if (dirty) { e.preventDefault(); e.returnValue = ''; } });
 new ResizeObserver(() => { resize(); fit(); draw(); }).observe($('#stage'));
-refresh().then(() => { const f = filtered(); if (f.length) openImage(f[0].name); });
-setInterval(refresh, 2500);
+try {
+  const b = localStorage.getItem('annot_backend'); if (b) $('#backend').value = b;
+  const gm = localStorage.getItem('annot_gemini_model'); if (gm) $('#geminiModel').value = gm;
+} catch (e) {}
+updateBackendUI();
+loadBackends();
+(async () => {
+  PROJ = await api('/api/project');
+  if (PROJ.open) await enterDataset(false); else showStart();
+})();
+setInterval(() => { if (PROJ && PROJ.open && !document.hidden) refresh(); }, 2500);
 </script>
 </body>
 </html>

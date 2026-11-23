@@ -5,6 +5,10 @@ images/
 *.zip
 *_coco.json
 
+# Local data (your own class list and recent datasets)
+classes.txt
+recent.json
+
 # Python
 __pycache__/
 *.pyc
@@ -14,6 +18,7 @@ venv/
 # Secrets / local env
 .env
 .env.*
+!.env.example
 
 # OS / editor
 .DS_Store
