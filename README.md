@@ -29,6 +29,13 @@ python app.py --images D:\data\shelf\images --classes classes.txt
 ```
 Open http://127.0.0.1:5050
 
+| Flag | Default | Meaning |
+|---|---|---|
+| `--images` | required | Folder with images (`.jpg .jpeg .png .bmp .webp`) |
+| `--classes` | `classes.txt` | One class name per line |
+| `--labels` | `<images>/../labels` | Folder for the YOLO `.txt` labels |
+| `--port` | 5050 | Port. The server listens on 127.0.0.1 only |
+
 Labels go to `<images>/../labels/` by default (YOLO's standard layout). Change this with `--labels`.
 
 ## Using it
@@ -79,3 +86,15 @@ Gray = unlabeled · Blue = Claude labeled · Yellow = edited by you · Green = r
 - Temp images sent to Claude are kept in `labels/_claude_tmp/`. Delete that folder anytime.
 - Only images directly inside the images folder are listed (no subfolders).
 - `CLAUDE_BIN` env var lets you point to a specific `claude` executable if it isn't on PATH.
+- On Windows run it with `python`, not `python3`.
+
+## Status
+
+This copy (app.py and index.html dated 13 Nov 2026, one commit on 23 Nov) has the **Claude engine only** (Sonnet / Haiku / Opus through the Claude Code CLI). It ran end to end on about 20 images with the Claude Pro plan. The Gemini and open-source engines (Ollama VLM, Grounding DINO, YOLO-World), the start page with folder browser, the SKU manager, flags and `data.yaml` import described in the knowledge base are **not in this folder's code**. This README describes the code that is here.
+
+## Related docs
+
+Paths are relative to this folder inside the SEM7_Intern workspace.
+
+- [`../../kb/claude-annotator-knowledge-base.md`](../../kb/claude-annotator-knowledge-base.md): engines, model choice, speed, backlog
+- Labels are YOLO detection `.txt`; the Export YOLO zip imports into Roboflow.
