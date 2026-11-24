@@ -34,7 +34,7 @@ def world():
     labels_repo = FakeLabelRepository(images_repo)
     classes = ClassService(FakeClassRepository(), projects)
     images = ImageService(images_repo, FakeStorage(), projects)
-    service = ImportService(images, classes, LabelService(labels_repo))
+    service = ImportService(images, classes, LabelService(labels_repo, images, classes))
     return service, classes, images, labels_repo
 
 

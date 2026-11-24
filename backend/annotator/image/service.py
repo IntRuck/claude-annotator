@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from pathlib import PurePath
 
 from annotator.common.problem import ApiError
+from annotator.common.text import one_line
 from annotator.image.models import STATUSES
 from annotator.image.repository import ImageRepository
 from annotator.image.schemas import FILTERS, ImageList, ImageOut, SkippedFile, UploadResult
@@ -91,6 +92,12 @@ class ImageService:
             if value is not None:
                 setattr(row, field, value)
         return ImageOut.model_validate(self.repo.save(row))
+
+    def set_flag(self, image_id: int, flagged: bool, reason: str = "", note: str = "") -> ImageOut:
+        """Flag "check this later" with a reason and note; unflagging clears both. The status is untouched."""
+        if not flagged:
+            reason = note = ""
+        return self.update_state(image_id, flagged=flagged, flag_reason=one_line(reason), flag_note=one_line(note))
 
     def thumb_url(self, image_id: int) -> str:
         return self._signed(self._row(image_id).thumb_path)

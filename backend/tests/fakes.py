@@ -144,6 +144,6 @@ class FakeLabelRepository:
         return list(self.boxes.get(image_id, []))
 
     def replace(self, project_id: int, image_id: int, boxes: list[dict], source: str):
-        self.boxes[image_id] = [{**b, "source": source} for b in boxes]
+        self.boxes[image_id] = [{**b, "source": b.get("source") or source} for b in boxes]
         self.images.get(image_id).box_count = len(boxes)
         return self.boxes[image_id]

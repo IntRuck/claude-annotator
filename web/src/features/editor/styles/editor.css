@@ -1,0 +1,36 @@
+/* Canvas */
+.editor { position: relative; width: 100%; height: 100%; overflow: hidden; }
+.editor-canvas { position: absolute; inset: 0; overflow: hidden; cursor: crosshair; }
+.editor-canvas.pan { cursor: grab; }
+.stage-photo { position: absolute; left: 0; top: 0; transform-origin: 0 0; user-select: none; pointer-events: none; max-width: none; }
+.stage-boxes { position: absolute; inset: 0; }
+
+/* Floating tools (same look as today) */
+.float { position: absolute; background: #fff; border-radius: 12px; box-shadow: 0 2px 10px #0003; }
+.rail { right: 12px; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; padding: 6px; gap: 2px; }
+.rail button, .zoombar button { border: none; background: none; border-radius: 8px; }
+.rail button { width: 36px; height: 36px; padding: 0; font-size: 16px; }
+.rail button[aria-pressed="true"], .zoombar button[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent); }
+.zoombar { left: 12px; bottom: 12px; display: flex; align-items: center; gap: 2px; padding: 4px; }
+.zoombar .pct { min-width: 48px; text-align: center; font-size: 12px; font-weight: 600; }
+.pop { position: absolute; bottom: 62px; left: 12px; width: 280px; padding: 14px 16px; z-index: 5; }
+.pop label { display: flex; justify-content: space-between; align-items: center; margin: 8px 0; gap: 10px; }
+.pop input[type=range] { width: 100%; accent-color: var(--accent); }
+.flag-banner { top: 12px; left: 50%; transform: translateX(-50%); padding: 6px 14px; background: var(--bad); color: #fff; font-weight: 600; font-size: 12px; }
+.conflict { top: 12px; left: 50%; transform: translateX(-50%); padding: 8px 14px; display: flex; gap: 10px; align-items: center; color: var(--bad); }
+
+/* Boxes tab */
+.box-list { list-style: none; margin: 0; padding: 0; }
+.box-list li { display: flex; align-items: center; gap: 6px; padding: 4px 6px; border-radius: 8px; }
+.box-list li.selected { background: var(--accent-soft); }
+.box-list select { flex: 1; min-width: 0; padding: 3px 6px; font-size: 12px; }
+.ghost { border-color: transparent; background: transparent; padding: 2px 7px; }
+
+/* Review panel */
+.review { padding: 6px 10px 10px; display: flex; flex-direction: column; gap: 6px; }
+.review .approve { background: var(--ok-soft); border-color: #bfe5cb; color: var(--ok); font-weight: 600; padding: 8px; }
+.review .approve.done { background: var(--ok); color: #fff; border-color: var(--ok); }
+.review .flagbtn { background: var(--bad-soft); border-color: #f5c7c7; color: var(--bad); font-weight: 600; padding: 8px; }
+.review .flagbtn.on { background: var(--bad); color: #fff; border-color: var(--bad); }
+.flagmore { display: flex; flex-direction: column; gap: 6px; }
+.dirty-note { font-size: 11px; color: #b45309; text-align: center; min-height: 15px; }

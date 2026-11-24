@@ -145,3 +145,16 @@ def test_update_state_changes_only_what_is_given(service, mixed, repo):
 
 def test_update_state_refuses_an_unknown_status(service, mixed):
     assert error_of(lambda: service.update_state(mixed["a.jpg"], status="done")) == (400, "UNKNOWN_STATUS")
+
+
+# ---------- flag (from the review panel) ----------
+def test_flag_with_reason_and_note_keeps_the_status(service, mixed):
+    service.update_state(mixed["a.jpg"], status="reviewed")
+    out = service.set_flag(mixed["a.jpg"], True, " wrong class ", "left\ncan")
+    assert (out.status, out.flagged, out.flag_reason, out.flag_note) == ("reviewed", True, "wrong class", "left can")
+
+
+def test_unflag_clears_reason_and_note(service, mixed):
+    service.set_flag(mixed["a.jpg"], True, "unsure", "x")
+    out = service.set_flag(mixed["a.jpg"], False, "ignored", "ignored")
+    assert (out.flagged, out.flag_reason, out.flag_note) == (False, "", "")

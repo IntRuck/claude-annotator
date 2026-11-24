@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 
 from annotator.db.session import get_session
 from annotator.image.repository import ImageRepository
-from annotator.image.schemas import ImageList, ImageOut, UploadResult
+from annotator.image.schemas import FlagIn, ImageList, ImageOut, UploadResult
 from annotator.image.service import SIGNED_URL_SECONDS, ImageService, UploadedFile
 from annotator.project.repository import ProjectRepository
 from annotator.project.service import ProjectService
@@ -47,3 +47,8 @@ def image_thumb(image_id: int, service: ImageService = Depends(get_image_service
 @router.get("/images/{image_id}/file")
 def image_file(image_id: int, service: ImageService = Depends(get_image_service)):
     return RedirectResponse(service.file_url(image_id), status_code=302, headers={"Cache-Control": _REDIRECT_CACHE})
+
+
+@router.put("/images/{image_id}/flag", response_model=ImageOut)
+def set_flag(image_id: int, body: FlagIn, service: ImageService = Depends(get_image_service)):
+    return service.set_flag(image_id, body.flagged, body.reason, body.note)

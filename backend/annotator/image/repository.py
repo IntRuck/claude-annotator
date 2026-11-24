@@ -33,8 +33,10 @@ class ImageRepository:
         return list(self.session.scalars(stmt.order_by(Image.file_name)))
 
     def save(self, row: Image) -> Image:
-        """Write changes to an image row and bump updated_at (used for save-conflict checks later)."""
-        row.updated_at = func.now()
+        """Write changes to an image row and bump updated_at, the version the editor's save-conflict check uses.
+        clock_timestamp(), not now(): now() is fixed for a whole transaction, so two saves in one transaction
+        would get the same version."""
+        row.updated_at = func.clock_timestamp()
         self.session.flush()
         self.session.refresh(row)
         return row

@@ -79,3 +79,21 @@ def test_import_against_real_postgres_creates_classes_boxes_and_counts(client):
     assert (images["a.jpg"]["status"], images["a.jpg"]["boxCount"], images["a.jpg"]["note"]) == ("auto", 2, "imported")
     assert (images["b.jpg"]["status"], images["b.jpg"]["flagged"], images["b.jpg"]["flagReason"]) == ("error", True, "unsure")
     assert [c["name"] for c in client.get(f"/api/projects/{pid}/classes").json()] == ["can", "class_1", "class_2"]
+
+
+def test_editor_save_round_trip_and_conflict_on_real_timestamps(client):
+    pid = client.post("/api/projects", json={"name": "Edit"}).json()["id"]
+    client.post(f"/api/projects/{pid}/classes", json={"name": "can"})
+    image_id = client.post(f"/api/projects/{pid}/images", files=[("files", ("a.jpg", _jpg(), "image/jpeg"))]).json()["added"][0]["id"]
+
+    opened = client.get(f"/api/images/{image_id}/boxes").json()
+    box = {"cls": 0, "x1": 0.1, "y1": 0.1, "x2": 0.5, "y2": 0.5}
+    first = client.put(f"/api/images/{image_id}/boxes",
+                       json={"boxes": [box], "status": "edited", "expectedUpdatedAt": opened["updatedAt"]})
+    assert first.status_code == 200, first.json()
+    assert first.json()["image"]["boxCount"] == 1
+
+    # A second save with the version from before the first save is refused.
+    stale = client.put(f"/api/images/{image_id}/boxes",
+                       json={"boxes": [], "status": "reviewed", "expectedUpdatedAt": opened["updatedAt"]})
+    assert (stale.status_code, stale.json()["code"]) == (409, "STALE_IMAGE")

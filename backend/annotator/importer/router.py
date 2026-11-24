@@ -21,11 +21,9 @@ router = APIRouter(prefix="/api/projects/{project_id}/import", tags=["import"])
 def get_import_service(session: Session = Depends(get_session),
                        storage: StorageService = Depends(get_storage)) -> ImportService:
     projects = ProjectService(ProjectRepository(session))
-    return ImportService(
-        ImageService(ImageRepository(session), storage, projects),
-        ClassService(ClassRepository(session), projects),
-        LabelService(LabelRepository(session)),
-    )
+    images = ImageService(ImageRepository(session), storage, projects)
+    classes = ClassService(ClassRepository(session), projects)
+    return ImportService(images, classes, LabelService(LabelRepository(session), images, classes))
 
 
 @router.post("", response_model=ImportResult)

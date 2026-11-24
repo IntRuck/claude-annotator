@@ -27,9 +27,9 @@ def client():
     projects = ProjectService(FakeProjectRepository())
     projects.create_project("Shelf")
     images_repo = FakeImageRepository()
-    service = ImportService(ImageService(images_repo, FakeStorage(), projects),
-                            ClassService(FakeClassRepository(), projects),
-                            LabelService(FakeLabelRepository(images_repo)))
+    images = ImageService(images_repo, FakeStorage(), projects)
+    classes = ClassService(FakeClassRepository(), projects)
+    service = ImportService(images, classes, LabelService(FakeLabelRepository(images_repo), images, classes))
     app.dependency_overrides[get_import_service] = lambda: service
     return TestClient(app)
 

@@ -33,3 +33,9 @@ class SkippedFile(ApiModel):
 class UploadResult(ApiModel):
     added: list[ImageOut]
     skipped: list[SkippedFile]
+
+
+class FlagIn(ApiModel):
+    flagged: bool
+    reason: str = ""
+    note: str = ""

@@ -5,4 +5,5 @@ export const queryKeys = {
   classes: (projectId) => ['projects', projectId, 'classes'],
   imagesOf: (projectId) => ['projects', projectId, 'images'],
   images: (projectId, filter) => ['projects', projectId, 'images', filter],
+  boxes: (imageId) => ['images', imageId, 'boxes'],
 };

@@ -13,3 +13,7 @@ export function uploadImages(projectId, files) {
 /** The API answers these with a redirect to a short-lived signed Storage link. */
 export const thumbUrl = (imageId) => `${API_BASE}/images/${imageId}/thumb`;
 export const fileUrl = (imageId) => `${API_BASE}/images/${imageId}/file`;
+
+/** Flag "check this later" with a reason and note (unflagging clears them). The status is untouched. */
+export const setFlag = (imageId, { flagged, reason = '', note = '' }) =>
+  apiFetch(`/images/${imageId}/flag`, { method: 'PUT', body: { flagged, reason, note } });
