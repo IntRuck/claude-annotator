@@ -6,6 +6,7 @@ export const ENGINES = [
     modelLabel: 'Gemini model',
     defaultModel: 'gemini-3.5-flash-lite',
     models: ['gemini-3.5-flash-lite', 'gemini-3.5-flash'],
+    supportsRefine: true,
   },
 ];
 

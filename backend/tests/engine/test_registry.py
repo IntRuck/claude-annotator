@@ -10,8 +10,9 @@ def settings(**kw) -> Settings:
     return Settings(_env_file=None, gemini_api_key="k", gemini_base_url="https://gemini.test/v1beta", **kw)
 
 
-def test_gemini_is_registered_with_a_label():
+def test_gemini_is_registered_with_a_label_and_can_refine():
     assert ENGINES["gemini"].label == "Gemini"
+    assert ENGINES["gemini"].supports_refine is True
 
 
 def test_options_keep_only_what_the_engine_takes_trimmed_with_defaults():

@@ -17,6 +17,7 @@ describe('statusText', () => {
   it('names the image being labelled and how many are waiting', () => {
     expect(statusText({ queued: 3, running: [{ fileName: 'b.jpg' }] })).toBe('Labeling b.jpg… · 3 waiting');
     expect(statusText({ queued: 0, running: [{ fileName: 'b.jpg' }] })).toBe('Labeling b.jpg…');
+    expect(statusText({ queued: 1, running: [{ fileName: 'b.jpg', kind: 'refine' }] })).toBe('Refining b.jpg… · 1 waiting');
     expect(statusText({ queued: 2, running: [] })).toBe('2 waiting');
     expect(statusText({ queued: 0, running: [] })).toBe('idle');
     expect(statusText(undefined)).toBe('idle');

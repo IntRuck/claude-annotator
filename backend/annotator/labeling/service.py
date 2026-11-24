@@ -5,11 +5,12 @@ load (read) -> run_engine (no database) -> save (write), or fail / limit_reached
 """
 import time
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from annotator.activity.service import ActivityService
 from annotator.classes.service import ClassService
 from annotator.common.problem import ApiError
+from annotator.engine.geometry import to_1000
 from annotator.image.service import ImageService
 from annotator.job.schemas import JobOut
 from annotator.job.service import JobService
@@ -28,6 +29,7 @@ class LabelTask:
     prompts: list[str]    # what to look for: the detector prompt, else the name with _ as spaces
     descs: list[str]      # SKU descriptions
     indexes: list[int]    # class index of each position above
+    current: list[dict] = field(default_factory=list)   # refine: today's boxes, cls = position above
 
 
 @dataclass
@@ -39,11 +41,18 @@ class LabelOutcome:
 
 
 def run_engine(task: LabelTask, make_engine: EngineFactory) -> LabelOutcome:
-    """Ask the engine for boxes. VLMs get a shrunk copy; detectors the original."""
+    """Ask the engine for boxes. Annotate: VLMs get a shrunk copy, detectors the original. Refine (VLMs only):
+    a clean copy, the same copy with today's boxes drawn and numbered, and those boxes on the 0-1000 scale."""
     engine = make_engine(task.job.engine, task.job.options)
-    image = prepare_for_vlm(task.image) if engine.resize_input else task.image
+    extra = task.job.options.get("extra", "")
     started = time.monotonic()
-    boxes, unknown = engine.annotate(image, task.classes, task.prompts, task.descs, task.job.options.get("extra", ""))
+    if task.job.kind == "refine":
+        boxes, unknown = engine.refine(prepare_for_vlm(task.image), prepare_for_vlm(task.image, boxes=task.current),
+                                       task.classes, task.prompts, task.descs, to_1000(task.current, task.classes),
+                                       extra)
+    else:
+        image = prepare_for_vlm(task.image) if engine.resize_input else task.image
+        boxes, unknown = engine.annotate(image, task.classes, task.prompts, task.descs, extra)
     mapped = [{**b, "cls": task.indexes[b["cls"]]} for b in boxes if 0 <= b["cls"] < len(task.indexes)]
     return LabelOutcome(mapped, set(unknown), time.monotonic() - started, engine.name)
 
@@ -72,13 +81,20 @@ class LabelingService:
                                               "before its turn came", job_id=job.id, image_id=image.id)
             return None
         classes = self.classes.list_classes(job.project_id)
+        indexes = [c.index for c in classes]
         return LabelTask(
             job=job, file_name=image.file_name, image=self.images.download_original(image.id),
             classes=[c.name for c in classes],
             prompts=[c.detector_prompt or c.name.replace("_", " ") for c in classes],
             descs=[c.description for c in classes],
-            indexes=[c.index for c in classes],
+            indexes=indexes,
+            current=self._current_boxes(image.id, indexes) if job.kind == "refine" else [],
         )
+
+    def _current_boxes(self, image_id: int, indexes: list[int]) -> list[dict]:
+        position = {index: i for i, index in enumerate(indexes)}
+        return [{"cls": position[b.cls], "x1": b.x1, "y1": b.y1, "x2": b.x2, "y2": b.y2}
+                for b in self.labels.get_boxes(image_id).boxes if b.cls in position]
 
     def save(self, task: LabelTask, outcome: LabelOutcome) -> None:
         job = task.job

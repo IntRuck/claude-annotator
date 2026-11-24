@@ -7,7 +7,7 @@ const SETTINGS = { engine: 'gemini', model: 'gemini-3.5-flash-lite', extra: '' }
 const IDLE = { queued: 0, running: [] };
 
 function renderBar(props = {}) {
-  const handlers = { onChange: vi.fn(), onRunAll: vi.fn(), onStop: vi.fn() };
+  const handlers = { onChange: vi.fn(), onRunAll: vi.fn(), onRefineAll: vi.fn(), onStop: vi.fn() };
   render(<EngineBar settings={SETTINGS} summary={IDLE} notice="" busy={false} {...handlers} {...props} />);
   return handlers;
 }
@@ -30,6 +30,12 @@ describe('EngineBar', () => {
     const { onRunAll } = renderBar();
     await userEvent.click(screen.getByRole('button', { name: 'Label all unlabeled' }));
     expect(onRunAll).toHaveBeenCalled();
+  });
+
+  it('Refine all asks the AI to review its own unapproved labels', async () => {
+    const { onRefineAll } = renderBar();
+    await userEvent.click(screen.getByRole('button', { name: 'Refine all' }));
+    expect(onRefineAll).toHaveBeenCalled();
   });
 
   it('Stop is only on while images are waiting', async () => {
@@ -56,5 +62,6 @@ describe('EngineBar', () => {
   it('can not start another batch while one is being queued', () => {
     renderBar({ busy: true });
     expect(screen.getByRole('button', { name: 'Label all unlabeled' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Refine all' })).toBeDisabled();
   });
 });

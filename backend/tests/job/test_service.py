@@ -139,6 +139,46 @@ def test_queueing_in_a_missing_project_is_404(w):
     assert error_of(lambda: w.jobs.queue(42, JobCreate(target="unlabeled"))) == (404, "PROJECT_NOT_FOUND")
 
 
+# ---------- refine ----------
+def test_refine_all_queues_ai_labelled_images_not_yet_approved(w):
+    w.image("a.jpg")
+    b, c = w.image("b.jpg", "auto"), w.image("c.jpg", "auto")
+    w.image("d.jpg", "reviewed")
+
+    result = w.jobs.queue(1, JobCreate(kind="refine", target="auto", options={"model": "gemini-x"}))
+
+    assert result.queued == 2
+    assert queued_images(w) == [(b, "queued"), (c, "queued")]
+    job = w.jobs_repo.get(1)
+    assert job.kind == "refine"
+    assert job.options["onlyIfStatus"] == ["auto"]
+    assert w.activity_repo.messages() == ["Queued 2 image(s) to refine with Gemini (gemini-x)"]
+
+
+def test_refine_one_image_whatever_its_status(w):
+    a = w.image("a.jpg", "reviewed")
+    assert w.jobs.queue(1, JobCreate(kind="refine", target="image", image_id=a)).queued == 1
+
+
+@pytest.mark.parametrize("target", ["unlabeled", "errors", "all"])
+def test_refine_only_works_on_one_image_or_the_ai_labelled_ones(w, target):
+    assert error_of(lambda: w.jobs.queue(1, JobCreate(kind="refine", target=target))) == (400, "UNKNOWN_TARGET")
+
+
+def test_label_all_does_not_take_the_refine_target(w):
+    assert error_of(lambda: w.jobs.queue(1, JobCreate(target="auto"))) == (400, "UNKNOWN_TARGET")
+
+
+def test_an_engine_that_cannot_refine_says_so(w, monkeypatch):
+    from annotator.engine.registry import ENGINES, EngineInfo
+
+    monkeypatch.setitem(ENGINES, "detector", EngineInfo(label="Detector", defaults={"model": "x", "extra": ""},
+                                                        build=lambda o, s: None, supports_refine=False))
+    w.image("a.jpg", "auto")
+    assert error_of(lambda: w.jobs.queue(1, JobCreate(kind="refine", target="auto", engine="detector"))) == (
+        400, "CANT_REFINE")
+
+
 # ---------- stop ----------
 def test_stop_cancels_waiting_images_and_lets_the_current_one_finish(w):
     for n in "abc":

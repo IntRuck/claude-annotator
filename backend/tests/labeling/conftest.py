@@ -36,6 +36,14 @@ class FakeEngine:
 
     def annotate(self, image, classes, prompts, descs, extra):
         self.calls.append({"image": image, "classes": classes, "prompts": prompts, "descs": descs, "extra": extra})
+        return self._next()
+
+    def refine(self, clean, overlay, classes, prompts, descs, current, extra):
+        self.calls.append({"clean": clean, "overlay": overlay, "classes": classes, "prompts": prompts, "descs": descs,
+                           "current": current, "extra": extra})
+        return self._next()
+
+    def _next(self):
         out = self.script.pop(0)
         if isinstance(out, Exception):
             raise out
@@ -70,6 +78,10 @@ class World:
 
     def queue(self, target="unlabeled", **kw):
         return self.jobs.queue(1, JobCreate(target=target, options={"model": "gemini-x", "extra": "top shelf"}, **kw))
+
+    def give_boxes(self, image_id, boxes, status="auto"):
+        self.labels.replace_boxes(1, image_id, boxes, source="ai")
+        self.image_repo.get(image_id).status = status
 
     def status(self, image_id):
         return self.image_repo.get(image_id).status

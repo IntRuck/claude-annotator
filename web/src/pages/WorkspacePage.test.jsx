@@ -229,6 +229,20 @@ describe('WorkspacePage', () => {
       expect(saveBoxes.mock.invocationCallOrder[0]).toBeLessThan(queueJobs.mock.invocationCallOrder[0]);
     });
 
+    it('Refine all queues the AI-labelled images for review', async () => {
+      renderPage();
+      await waitForImage(1);
+      await userEvent.click(screen.getByRole('button', { name: 'Refine all' }));
+      await waitFor(() => expect(queueJobs).toHaveBeenCalledWith(4, { kind: 'refine', target: 'auto', ...GEMINI }));
+    });
+
+    it('Refine boxes with AI queues this image for review', async () => {
+      renderPage();
+      await waitForImage(1);
+      await userEvent.click(screen.getByRole('button', { name: /Refine boxes with AI/ }));
+      await waitFor(() => expect(queueJobs).toHaveBeenCalledWith(4, { kind: 'refine', target: 'image', imageId: 1, ...GEMINI }));
+    });
+
     it('without classes the SKU manager opens instead, like today', async () => {
       listClasses.mockResolvedValue([]);
       renderPage();

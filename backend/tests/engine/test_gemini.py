@@ -158,5 +158,19 @@ def test_annotate_end_to_end_with_fake_api():
     assert "Extra instructions: Ignore the top shelf" in parts[-1]["text"]
 
 
+def test_refine_sends_clean_and_numbered_images_with_the_current_boxes_y_first():
+    engine, requests, _ = engine_with([reply([{"label": "can", "box_2d": [100, 200, 300, 400]}])])
+    current = [{"class": "can", "box": [200, 100, 400, 300]}]            # x-first, as to_1000 gives them
+
+    boxes, unknown = engine.refine(b"CLEAN", b"OVERLAY", ["can"], ["can"], [""], current, "")
+
+    assert boxes == [{"cls": 0, "x1": 0.2, "y1": 0.1, "x2": 0.4, "y2": 0.3}]
+    parts = json.loads(requests[0].content)["contents"][0]["parts"]
+    assert [p["inline_data"]["data"] for p in parts[:2]] == ["Q0xFQU4=", "T1ZFUkxBWQ=="]   # base64 of both images
+    prompt = parts[-1]["text"]
+    assert json.dumps([{"label": "can", "box_2d": [100, 200, 300, 400]}]) in prompt
+    assert "numbered #0, #1" in prompt
+
+
 def test_engine_flags():
     assert (GeminiEngine.name, GeminiEngine.supports_refine, GeminiEngine.resize_input) == ("gemini", True, True)

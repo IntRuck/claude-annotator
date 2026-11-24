@@ -4,3 +4,4 @@
 .engine-bar .extra { width: 150px; }
 .engine-bar .ai-status { font-size: 12px; color: var(--muted); min-width: 90px; white-space: nowrap; }
 .ai-image-button { width: 100%; margin-top: 10px; padding: 9px 0; font-weight: 600; }
+.ai-image-button.secondary { margin-top: 6px; padding: 6px 0; font-weight: 500; }

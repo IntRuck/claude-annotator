@@ -2,8 +2,9 @@ import { ENGINES, engineInfo } from '../lib/engines';
 import { statusText } from '../lib/status';
 import '../styles/jobs.css';
 
-/** Top-bar AI controls, like today: engine, its options, extra instructions, Label all unlabeled, Stop, status. */
-export default function EngineBar({ settings, summary, notice, busy, onChange, onRunAll, onStop }) {
+/** Top-bar AI controls, like today: engine, its options, extra instructions, Label all unlabeled, Refine all,
+ * Stop, status. */
+export default function EngineBar({ settings, summary, notice, busy, onChange, onRunAll, onRefineAll, onStop }) {
   const info = engineInfo(settings.engine);
   const waiting = summary?.queued ?? 0;
 
@@ -24,6 +25,10 @@ export default function EngineBar({ settings, summary, notice, busy, onChange, o
       <button type="button" className="primary" disabled={busy} onClick={onRunAll}
               title="Label every image that has no labels yet (and retry the ones that failed)">
         Label all unlabeled
+      </button>
+      <button type="button" disabled={busy || !info.supportsRefine} onClick={onRefineAll}
+              title="Let the AI review and fix every auto-labeled image you haven't approved">
+        Refine all
       </button>
       <button type="button" disabled={waiting === 0} onClick={onStop} title="Stop after the current image">■ Stop</button>
       <span className="ai-status" aria-live="polite">{notice || statusText(summary)}</span>

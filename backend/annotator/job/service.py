@@ -7,16 +7,15 @@ from annotator.job.repository import JobRepository
 from annotator.job.schemas import JobCreate, JobOut, JobSummary, QueueResult, RunningJob, StopResult
 from annotator.project.service import ProjectService
 
-KINDS = ("annotate",)  # refine comes with the next slice
-# Statuses each target picks. Batch targets also re-check the status when the image's turn comes, so an image
-# labelled by hand in the meantime isn't overwritten. "image" and "all" overwrite on purpose.
-TARGETS: dict[str, list[str] | None] = {
-    "image": None,
-    "unlabeled": ["unlabeled", "error"],
-    "errors": ["error"],
-    "all": None,
+# Statuses each target picks, per kind (today's buttons: Label all unlabeled, Find objects / Refine boxes with AI,
+# Refine all). Batch targets also re-check the status when the image's turn comes, so an image labelled by hand
+# in the meantime isn't overwritten. "image" and "all" overwrite on purpose.
+TARGETS: dict[str, dict[str, list[str] | None]] = {
+    "annotate": {"image": None, "unlabeled": ["unlabeled", "error"], "errors": ["error"], "all": None},
+    "refine": {"image": None, "auto": ["auto"]},
 }
-PROTECTED_TARGETS = ("unlabeled", "errors")
+KINDS = tuple(TARGETS)
+PROTECTED_TARGETS = ("unlabeled", "errors", "auto")
 
 
 def engine_label(engine: str) -> str:
@@ -39,30 +38,36 @@ class JobService:
         self.projects.get_project(project_id)
         if body.kind not in KINDS:
             raise ApiError(400, "UNKNOWN_KIND", f"Unknown job kind '{body.kind}'. Use one of: {', '.join(KINDS)}.")
-        if body.target not in TARGETS:
-            raise ApiError(400, "UNKNOWN_TARGET", f"Unknown target '{body.target}'. Use one of: {', '.join(TARGETS)}.")
+        targets = TARGETS[body.kind]
+        if body.target not in targets:
+            raise ApiError(400, "UNKNOWN_TARGET",
+                           f"Unknown target '{body.target}' for {body.kind}. Use one of: {', '.join(targets)}.")
         try:
             options = clean_options(body.engine, body.options)
         except UnknownEngineError:
             raise ApiError(400, "UNKNOWN_ENGINE",
                            f"Unknown engine '{body.engine}'. Use one of: {', '.join(ENGINES)}.") from None
+        if body.kind == "refine" and not ENGINES[body.engine].supports_refine:
+            raise ApiError(400, "CANT_REFINE", f"{engine_label(body.engine)} can't refine boxes; use a VLM "
+                                               "such as Gemini, Claude or a local Ollama model.")
         if not self.classes.list_classes(project_id):
             raise ApiError(400, "NO_CLASSES", "Add at least one class (SKU) first, so the AI knows what to look for.")
 
         image_ids = self._target_ids(project_id, body)
         if body.target in PROTECTED_TARGETS:
-            options["onlyIfStatus"] = TARGETS[body.target]
+            options["onlyIfStatus"] = targets[body.target]
         queued = self.repo.enqueue(project_id, image_ids, kind=body.kind, engine=body.engine, options=options)
 
         waiting = len(image_ids) - len(queued)
         if queued:
-            line = f"Queued {len(queued)} image(s) for {engine_label(body.engine)} ({options['model']})"
+            how = "to refine with" if body.kind == "refine" else "for"
+            line = f"Queued {len(queued)} image(s) {how} {engine_label(body.engine)} ({options['model']})"
             self.activity.log(project_id, line + (f"; {waiting} already waiting" if waiting else ""))
         return QueueResult(matched=len(image_ids), queued=len(queued), already_queued=waiting)
 
     def _target_ids(self, project_id: int, body: JobCreate) -> list[int]:
         if body.target != "image":
-            return self.images.ids_with_status(project_id, TARGETS[body.target])
+            return self.images.ids_with_status(project_id, TARGETS[body.kind][body.target])
         if body.image_id is None:
             raise ApiError(400, "IMAGE_REQUIRED", "Say which image to label (imageId).")
         image = self.images.get_image(body.image_id)

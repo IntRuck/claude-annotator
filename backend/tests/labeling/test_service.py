@@ -113,3 +113,44 @@ def test_a_usage_limit_leaves_the_image_alone_and_stops_the_rest(w):
 
     assert w.status(image_id) == "unlabeled"
     assert [j.status for j in w.job_repo.rows.values()] == ["failed", "cancelled"]
+
+
+# ---------- refine ----------
+def queued_refine(w, boxes):
+    image_id = w.upload("a.jpg", size=(400, 300))
+    w.give_boxes(image_id, boxes)
+    w.queue(target="image", image_id=image_id, kind="refine")
+    return image_id, w.jobs.claim_next()
+
+
+def test_load_for_refine_brings_the_current_boxes_as_positions_in_the_class_list(w):
+    _, job = queued_refine(w, [JAR, CAN])
+    task = w.labeling.load(job)
+    assert sorted((b["cls"], b["x1"]) for b in task.current) == [(0, 0.1), (1, 0.6)]
+
+
+def test_an_annotate_job_does_not_load_the_current_boxes(w):
+    _, job = claimed(w)
+    assert w.labeling.load(job).current == []
+
+
+def test_run_engine_for_refine_sends_a_clean_and_a_numbered_copy_and_the_boxes_on_0_1000(w):
+    _, job = queued_refine(w, [CAN])
+    task = w.labeling.load(job)
+    engine = FakeEngine([([JAR], set())])
+
+    outcome = run_engine(task, lambda name, options: engine)
+
+    call = engine.calls[0]
+    assert call["clean"] != call["overlay"]
+    assert Image.open(io.BytesIO(call["overlay"])).size == Image.open(io.BytesIO(call["clean"])).size == (400, 300)
+    assert call["current"] == [{"class": "tuna_can", "box": [100, 100, 500, 500]}]
+    assert [b["cls"] for b in outcome.boxes] == [1]
+
+
+def test_saving_a_refine_replaces_the_boxes(w):
+    image_id, job = queued_refine(w, [CAN])
+    task = w.labeling.load(job)
+    w.labeling.save(task, run_engine(task, lambda name, options: FakeEngine([([JAR, CAN], set())])))
+    assert sorted(b["cls"] for b in w.label_repo.list_for_image(image_id)) == [0, 1]
+    assert w.status(image_id) == "auto"

@@ -2,7 +2,10 @@
 export function statusText(summary) {
   const running = summary?.running?.[0];
   const queued = summary?.queued ?? 0;
-  if (running) return `Labeling ${running.fileName}…${queued ? ` · ${queued} waiting` : ''}`;
+  if (running) {
+    const verb = running.kind === 'refine' ? 'Refining' : 'Labeling';
+    return `${verb} ${running.fileName}…${queued ? ` · ${queued} waiting` : ''}`;
+  }
   return queued ? `${queued} waiting` : 'idle';
 }
 

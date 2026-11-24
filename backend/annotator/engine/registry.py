@@ -20,6 +20,7 @@ class EngineInfo:
     label: str
     defaults: dict
     build: Callable[[dict, Settings], object]
+    supports_refine: bool = True   # VLMs can review their boxes; detectors can't
 
 
 ENGINES: dict[str, EngineInfo] = {
@@ -27,6 +28,7 @@ ENGINES: dict[str, EngineInfo] = {
         label="Gemini",
         defaults={"model": GEMINI_DEFAULT_MODEL, "extra": ""},
         build=lambda opts, s: GeminiEngine(opts["model"], api_key=s.gemini_api_key, base_url=s.gemini_base_url),
+        supports_refine=GeminiEngine.supports_refine,
     ),
 }
 

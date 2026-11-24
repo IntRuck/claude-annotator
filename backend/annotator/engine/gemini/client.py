@@ -12,7 +12,7 @@ from collections.abc import Callable
 import httpx
 
 from annotator.engine.base import LimitReached
-from annotator.engine.vlm_prompts import RULES, annotate_prompt
+from annotator.engine.vlm_prompts import RULES, annotate_prompt, refine_prompt
 
 DEFAULT_MODEL = "gemini-3.5-flash-lite"
 
@@ -141,3 +141,9 @@ class GeminiEngine:
     def annotate(self, image: bytes, classes, prompts, descs, extra):
         prompt = annotate_prompt("", classes, prompts, extra, False, descs, GEMINI_RULES, GEMINI_OUTPUT)
         return self._parse(self._text(self._post(prompt, [image], classes)), classes)
+
+    def refine(self, clean: bytes, overlay: bytes, classes, prompts, descs, current, extra):
+        # current comes in x-first; show it to Gemini in its own y-first format
+        cur = [{"label": c["class"], "box_2d": [c["box"][1], c["box"][0], c["box"][3], c["box"][2]]} for c in current]
+        prompt = refine_prompt("", classes, prompts, cur, extra, descs, GEMINI_RULES, GEMINI_OUTPUT)
+        return self._parse(self._text(self._post(prompt, [clean, overlay], classes)), classes)
