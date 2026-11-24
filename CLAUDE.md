@@ -30,5 +30,6 @@ supabase start                                   # local stack (from the repo ro
 docker compose run --rm flyway migrate          # apply migrations (also: info, validate)
 cd backend && .venv/Scripts/python -m pytest      # backend tests (-m db needs Docker)
 cd backend && .venv/Scripts/python -m uvicorn annotator.main:create_app --factory --port 8000 --reload --timeout-graceful-shutdown 3   # API
+cd backend && .venv/Scripts/python -m annotator.worker   # worker (runs the AI engines)
 cd web && npm test && npm run lint && npm run build
 ```

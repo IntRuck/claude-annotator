@@ -16,9 +16,11 @@ Package by feature under `annotator/`, same layers as backend_web with FastAPI f
 
 Shared code: `common/` (problem+json, paging), `config/settings.py` (the only place that reads env), `db/`, `storage/`, `realtime/`.
 
-Live updates (`realtime/`): a V4 trigger sends `NOTIFY annotator_changes` with `{type, op, id, projectId}` on every committed change to `images` or `classes`. `NotifyListener` (its own thread and connection) passes each payload to `RealtimeService.to_message`, which loads the DTO; the `Broadcaster` hands it to the SSE streams of that project (`GET /api/projects/{id}/events`). A new table joins by adding the same trigger and a branch in `to_message`.
+Live updates (`realtime/`): a V4 trigger sends `NOTIFY annotator_changes` with `{type, op, id, projectId}` on every committed change to `images`, `classes` or `activity_log` (V6: `jobs` sends one `{type, op, projectId}` per statement, answered with the job summary). `NotifyListener` (its own thread and connection) passes each payload to `RealtimeService.to_message`, which loads the DTO; the `Broadcaster` hands it to the SSE streams of that project (`GET /api/projects/{id}/events`). A new table joins by adding the same trigger and a branch in `to_message`.
 
 Two entry points, one codebase: the API (`annotator.main:create_app`) and the worker (`python -m annotator.worker`), which runs the AI engines.
+
+AI jobs: the API queues one `jobs` row per image (`job/service.py`). The worker (`job/loop.py`) claims the oldest with `FOR UPDATE SKIP LOCKED`; `labeling/service.py` then loads the image (short transaction), calls the engine (no transaction) and saves boxes, status and an `activity_log` line (short transaction). The worker wakes on the jobs NOTIFY and checks every 5 s anyway. Engines live in `engine/` (registry, shared `vlm_prompts`, one folder per engine).
 
 ## Hard rules
 
@@ -34,6 +36,9 @@ Mirror the package under `tests/` (e.g. `annotator/label/service.py` → `tests/
 # Run the API (http://127.0.0.1:8000). Open browser tabs keep their live-update (SSE) stream connected,
 # so --timeout-graceful-shutdown lets Ctrl+C finish instead of waiting for every tab to close.
 .venv/Scripts/python -m uvicorn annotator.main:create_app --factory --host 127.0.0.1 --port 8000 --reload --timeout-graceful-shutdown 3
+
+# Run the worker next to it (runs the AI engines; Gemini needs GEMINI_API_KEY set, see .env.example).
+.venv/Scripts/python -m annotator.worker
 
 .venv/Scripts/python -m pytest                  # unit + router tests
 .venv/Scripts/python -m pytest -m db            # repository tests (Docker: testcontainers + Flyway)

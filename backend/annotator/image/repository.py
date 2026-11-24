@@ -26,6 +26,13 @@ class ImageRepository:
         counts = row._asdict()
         return {k: counts[k] for k in ("all", "unlabeled", "auto", "edited", "reviewed", "flagged", "error")}
 
+    def ids_with_status(self, project_id: int, statuses: list[str] | None) -> list[int]:
+        """Image ids by file name; all of the project's images when `statuses` is None."""
+        stmt = select(Image.id).where(Image.project_id == project_id)
+        if statuses is not None:
+            stmt = stmt.where(Image.status.in_(statuses))
+        return list(self.session.scalars(stmt.order_by(Image.file_name)))
+
     def find_by_names(self, project_id: int, names: list[str]) -> list[Image]:
         if not names:
             return []

@@ -6,10 +6,14 @@ import { ClassList, SkuManager, applyClassMessage, useClasses } from '@/features
 import { ImageStrip, UploadImages, applyImageMessage, fileUrl, stepFrom, useImages, useSetFlag } from '@/features/images';
 import { ImportDataset } from '@/features/importer';
 import { BoxPanel, Editor, ReviewPanel, useEditor } from '@/features/editor';
+import { EngineBar, applyJobMessage, noticeFor, useEngineSettings, useJobSummary, useQueueJobs, useStopJobs } from '@/features/jobs';
+import { ActivityLog, applyActivityMessage, useActivity } from '@/features/activity';
 import { useLiveUpdates } from '@/lib/realtime/useLiveUpdates';
 import './pages.css';
 
-const LIVE_HANDLERS = { images: applyImageMessage, classes: applyClassMessage };
+const LIVE_HANDLERS = {
+  images: applyImageMessage, classes: applyClassMessage, jobs: applyJobMessage, activity: applyActivityMessage,
+};
 const LIVE = {
   live: ['Live', 'Changes from other tabs and the AI show up here as they happen'],
   connecting: ['Connecting…', 'Connecting to live updates'],
@@ -25,6 +29,12 @@ export default function WorkspacePage() {
   const images = useImages(projectId, filter);
   const live = useLiveUpdates(projectId, LIVE_HANDLERS);
   const flag = useSetFlag(projectId);
+  const [engine, setEngine] = useEngineSettings();
+  const jobs = useJobSummary(projectId);
+  const queueJobs = useQueueJobs(projectId);
+  const stopJobs = useStopJobs(projectId);
+  const activity = useActivity(projectId);
+  const [aiNotice, setAiNotice] = useState('');
   const [skuOpen, setSkuOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [introDismissed, setIntroDismissed] = useState(false);
@@ -75,6 +85,36 @@ export default function WorkspacePage() {
     if (next !== null) setChosenImageId(next);
   };
 
+  /** Ask the AI to label `target` ('image' = the one on screen). Unsaved edits are saved first, like today;
+   * with no classes the SKU manager opens instead. */
+  const runAi = async (target) => {
+    if (classList.length === 0) {
+      setSkuOpen(true);
+      return;
+    }
+    try {
+      await editor.saveIfDirty();
+    } catch {
+      return;
+    }
+    setAiNotice('');
+    const body = { target, ...(target === 'image' ? { imageId: current.id } : {}), engine: engine.engine,
+                   options: { model: engine.model, extra: engine.extra } };
+    const result = await queueJobs.mutateAsync(body).catch(() => null);
+    if (result) setAiNotice(noticeFor(result));
+  };
+
+  /** A log line opens its image; when the filter hides it, show all images. */
+  const openFromLog = async (id) => {
+    if (items.some((i) => i.id === id)) {
+      goTo(id);
+      return;
+    }
+    await editor.saveIfDirty().catch(() => {});
+    setFilter('all');
+    setChosenImageId(id);
+  };
+
   const setImageFlag = (flagged, reason, note) => flag.mutate({ imageId: current.id, flagged, reason, note });
 
   const pickClass = useCallback((index) => {
@@ -90,6 +130,9 @@ export default function WorkspacePage() {
       <header className="workspace-bar">
         <Link to="/" className="brand">Claude Annotator</Link>
         <h1>{project.data?.name ?? ''}</h1>
+        <EngineBar settings={engine} summary={jobs.data} notice={aiNotice} busy={queueJobs.isPending}
+                   onChange={(patch) => { setEngine(patch); setAiNotice(''); }}
+                   onRunAll={() => runAi('unlabeled')} onStop={() => stopJobs.mutate()} />
         <span className={`live-status ${live}`} title={LIVE[live][1]}>{LIVE[live][0]}</span>
         <button type="button" onClick={() => openDialog(setImportOpen)}>Import dataset</button>
         <button type="button" onClick={() => openDialog(setSkuOpen)}>SKUs</button>
@@ -115,6 +158,12 @@ export default function WorkspacePage() {
                     onToggleHidden={(i) => setHidden((h) => { const n = new Set(h); if (n.has(i)) n.delete(i); else n.add(i); return n; })} />
         )}
         {current?.note && <p className="image-note">{current.note}</p>}
+        <ErrorBanner error={queueJobs.error || stopJobs.error} />
+        <button type="button" className="ai-image-button" disabled={!current || queueJobs.isPending}
+                onClick={() => runAi('image')} title="Ask the selected AI to label this image from scratch">
+          ✨ Find objects with AI
+        </button>
+        <ActivityLog entries={activity.data ?? []} onSelectImage={openFromLog} />
       </aside>
 
       <section className="workspace-stage">

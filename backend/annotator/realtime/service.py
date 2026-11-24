@@ -2,9 +2,11 @@
 import json
 import logging
 
+from annotator.activity.service import ActivityService
 from annotator.classes.service import ClassService
 from annotator.common.problem import ApiError
 from annotator.image.service import ImageService
+from annotator.job.service import JobService
 from annotator.project.service import ProjectService
 from annotator.realtime.broadcaster import Broadcaster, Subscription
 
@@ -14,27 +16,51 @@ OPS = ("insert", "update", "delete")
 
 
 class RealtimeService:
-    """Turns a NOTIFY payload from a V4 trigger (`{type, op, id, projectId}`) into the message the browser gets:
-    `{type, op, data}` where `data` is the same DTO the REST API returns (or just the id for a delete)."""
+    """Turns a NOTIFY payload from a trigger into the message the browser gets: `{type, op, data}`.
 
-    def __init__(self, images: ImageService, classes: ClassService):
+    - images / classes / activity (`{type, op, id, projectId}`): `data` is the same DTO the REST API returns,
+      or just the id for a delete.
+    - jobs (`{type, op, projectId}`, one per statement): `{type: "jobs", op: "summary", data: JobSummary}`.
+    """
+
+    def __init__(self, images: ImageService, classes: ClassService, jobs: JobService, activity: ActivityService):
         self.images = images
         self.classes = classes
+        self.jobs = jobs
+        self.activity = activity
 
     def to_message(self, raw: str) -> tuple[int, dict] | None:
         try:
             payload = json.loads(raw)
-            kind, op, row_id, project_id = payload["type"], payload["op"], payload["id"], payload["projectId"]
+            kind, op, project_id = payload["type"], payload["op"], payload["projectId"]
+            if op not in OPS:
+                return None
+            if kind == "jobs":
+                return project_id, self._jobs(project_id)
+            row_id = payload["id"]
         except (ValueError, KeyError, TypeError):
             log.warning("Live updates: skipped a payload it couldn't read: %.200s", raw)
-            return None
-        if op not in OPS:
             return None
         if kind == "images":
             return project_id, self._image(op, row_id)
         if kind == "classes":
             return project_id, self._class(op, project_id, row_id)
+        if kind == "activity":
+            message = self._activity(op, row_id)
+            return (project_id, message) if message else None
         return None
+
+    def _jobs(self, project_id: int) -> dict:
+        return {"type": "jobs", "op": "summary", "data": self.jobs.summary(project_id).model_dump(by_alias=True, mode="json")}
+
+    def _activity(self, op: str, entry_id: int) -> dict | None:
+        if op != "insert":
+            return None
+        try:
+            entry = self.activity.get_entry(entry_id)
+        except ApiError:
+            return None
+        return {"type": "activity", "op": "insert", "data": entry.model_dump(by_alias=True, mode="json")}
 
     def _image(self, op: str, image_id: int) -> dict:
         gone = {"type": "images", "op": "delete", "data": {"id": image_id}}

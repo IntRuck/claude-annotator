@@ -56,3 +56,13 @@ def test_unknown_status_is_refused(db_session, pid):
     row.status = "done"
     with pytest.raises(IntegrityError):
         db_session.flush()
+
+
+def test_ids_with_status_by_name(db_session, pid):
+    repo = ImageRepository(db_session)
+    rows = {n: add(repo, pid, n) for n in ("c.jpg", "a.jpg", "b.jpg")}
+    rows["b.jpg"].status = "error"
+    repo.save(rows["b.jpg"])
+
+    assert repo.ids_with_status(pid, ["unlabeled"]) == [rows["a.jpg"].id, rows["c.jpg"].id]
+    assert repo.ids_with_status(pid, None) == [rows["a.jpg"].id, rows["b.jpg"].id, rows["c.jpg"].id]

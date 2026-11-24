@@ -3,12 +3,16 @@ import json
 
 import pytest
 
+from annotator.activity.service import ActivityService
 from annotator.classes.schemas import ClassCreate
 from annotator.classes.service import ClassService
 from annotator.image.service import ImageService
+from annotator.job.schemas import JobCreate
+from annotator.job.service import JobService
 from annotator.project.service import ProjectService
 from annotator.realtime.service import RealtimeService
-from tests.fakes import FakeClassRepository, FakeImageRepository, FakeProjectRepository, FakeStorage
+from tests.fakes import (FakeActivityRepository, FakeClassRepository, FakeImageRepository, FakeJobRepository,
+                         FakeProjectRepository, FakeStorage)
 
 
 @pytest.fixture
@@ -19,7 +23,12 @@ def service():
     images_repo.add(1, file_name="a.jpg", stem="a", storage_path="p", thumb_path="t", width=100, height=50)
     classes = ClassService(FakeClassRepository(), projects)
     classes.add_class(1, ClassCreate(name="can", description="red tin"))
-    return RealtimeService(ImageService(images_repo, FakeStorage(), projects), classes)
+    images = ImageService(images_repo, FakeStorage(), projects)
+    activity = ActivityService(FakeActivityRepository(), projects)
+    jobs = JobService(FakeJobRepository(), projects, images, classes, activity)
+    jobs.queue(1, JobCreate(target="unlabeled"))      # one job, and one activity entry
+    jobs.claim_next()
+    return RealtimeService(images, classes, jobs, activity)
 
 
 def payload(**fields) -> str:
@@ -61,6 +70,25 @@ def test_changed_class_becomes_its_dto(service):
 def test_class_gone_by_the_time_we_read_it_is_sent_as_a_delete(service):
     assert service.to_message(payload(type="classes", op="update", id=4, projectId=1)) == (
         1, {"type": "classes", "op": "delete", "data": {"index": 4}})
+
+
+def test_job_changes_become_the_project_job_summary(service):
+    project_id, message = service.to_message(payload(type="jobs", op="update", projectId=1))
+    assert project_id == 1
+    assert (message["type"], message["op"]) == ("jobs", "summary")
+    assert message["data"]["queued"] == 0
+    assert message["data"]["running"][0]["fileName"] == "a.jpg"
+
+
+def test_a_new_activity_entry_becomes_its_dto(service):
+    assert service.to_message(payload(type="activity", op="insert", id=1, projectId=1)) == (
+        1, {"type": "activity", "op": "insert", "data": {
+            "id": 1, "level": "info", "message": "Queued 1 image(s) for Gemini (gemini-3.5-flash-lite)",
+            "jobId": None, "imageId": None, "createdAt": "2026-11-23T00:00:00Z"}})
+
+
+def test_an_activity_entry_gone_before_we_read_it_is_skipped(service):
+    assert service.to_message(payload(type="activity", op="insert", id=99, projectId=1)) is None
 
 
 @pytest.mark.parametrize("raw", [

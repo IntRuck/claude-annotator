@@ -3,11 +3,15 @@ from collections.abc import Callable
 
 from fastapi import Request
 
+from annotator.activity.repository import ActivityRepository
+from annotator.activity.service import ActivityService
 from annotator.classes.repository import ClassRepository
 from annotator.classes.service import ClassService
 from annotator.db.session import libpq_dsn, open_session
 from annotator.image.repository import ImageRepository
 from annotator.image.service import ImageService
+from annotator.job.repository import JobRepository
+from annotator.job.service import JobService
 from annotator.project.repository import ProjectRepository
 from annotator.project.service import ProjectService
 from annotator.realtime.broadcaster import Broadcaster
@@ -27,7 +31,10 @@ def message_from_payload(raw: str) -> tuple[int, dict] | None:
     with open_session() as session:
         projects = ProjectService(ProjectRepository(session))
         images = ImageService(ImageRepository(session), get_storage(), projects)
-        return RealtimeService(images, ClassService(ClassRepository(session), projects)).to_message(raw)
+        classes = ClassService(ClassRepository(session), projects)
+        activity = ActivityService(ActivityRepository(session), projects)
+        jobs = JobService(JobRepository(session), projects, images, classes, activity)
+        return RealtimeService(images, classes, jobs, activity).to_message(raw)
 
 
 def get_message_builder() -> MessageBuilder:

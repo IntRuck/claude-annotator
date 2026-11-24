@@ -1,0 +1,10 @@
+.activity-log { margin-top: 12px; font-size: 12px; }
+.activity-log summary { cursor: pointer; color: var(--muted); font-weight: 600; }
+.activity-log ol { list-style: none; margin: 6px 0 0; padding: 0; max-height: 260px; overflow: auto; }
+.activity-log li { display: flex; gap: 6px; padding: 2px 0; line-height: 1.35; }
+.activity-log time { color: var(--muted); font-variant-numeric: tabular-nums; flex: none; }
+.activity-log .link { border: none; background: none; padding: 0; text-align: left; color: inherit; cursor: pointer; font: inherit; }
+.activity-log .link:hover { text-decoration: underline; }
+.activity-log li.warning { color: #b45309; }
+.activity-log li.error { color: #dc2626; }
+.activity-log .empty { color: var(--muted); margin: 6px 0 0; }

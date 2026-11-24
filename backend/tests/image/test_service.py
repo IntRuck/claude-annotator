@@ -158,3 +158,30 @@ def test_unflag_clears_reason_and_note(service, mixed):
     service.set_flag(mixed["a.jpg"], True, "unsure", "x")
     out = service.set_flag(mixed["a.jpg"], False, "ignored", "ignored")
     assert (out.flagged, out.flag_reason, out.flag_note) == (False, "", "")
+
+
+# ---------- for the AI queue and the worker ----------
+def test_ids_with_status_lists_matching_images_by_name_or_all_when_no_status_given(service, repo):
+    added = service.upload(1, [upload("c.jpg"), upload("a.jpg"), upload("b.jpg")]).added
+    ids = {i.file_name: i.id for i in added}
+    repo.get(ids["b.jpg"]).status = "error"
+    repo.get(ids["c.jpg"]).status = "reviewed"
+
+    assert service.ids_with_status(1, ["unlabeled", "error"]) == [ids["a.jpg"], ids["b.jpg"]]
+    assert service.ids_with_status(1, None) == [ids["a.jpg"], ids["b.jpg"], ids["c.jpg"]]
+
+
+def test_ids_with_status_of_a_missing_project_is_404(service):
+    assert error_of(lambda: service.ids_with_status(42, None)) == (404, "PROJECT_NOT_FOUND")
+
+
+def test_download_original_returns_the_uploaded_bytes(service):
+    data = jpg((64, 32))
+    image = service.upload(1, [upload("a.jpg", data)]).added[0]
+    assert service.download_original(image.id) == data
+
+
+def test_download_original_when_storage_is_down_is_502(service, storage):
+    image = service.upload(1, [upload("a.jpg")]).added[0]
+    storage.fail_with = StorageError(0, "connection refused")
+    assert error_of(lambda: service.download_original(image.id)) == (502, "STORAGE_UNAVAILABLE")

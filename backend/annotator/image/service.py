@@ -79,6 +79,17 @@ class ImageService:
     def get_image(self, image_id: int) -> ImageOut:
         return ImageOut.model_validate(self._row(image_id))
 
+    def ids_with_status(self, project_id: int, statuses: list[str] | None) -> list[int]:
+        """Image ids by file name, for queueing AI work; None means every image."""
+        self.projects.get_project(project_id)
+        return self.repo.ids_with_status(project_id, statuses)
+
+    def download_original(self, image_id: int) -> bytes:
+        try:
+            return self.storage.download(IMAGES_BUCKET, self._row(image_id).storage_path)
+        except StorageError as e:
+            raise ApiError(502, "STORAGE_UNAVAILABLE", f"Couldn't read image {image_id} from storage: {e}") from e
+
     # ---------- status and flag ----------
     def update_state(self, image_id: int, *, status: str | None = None, note: str | None = None,
                      flagged: bool | None = None, flag_reason: str | None = None,

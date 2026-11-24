@@ -110,3 +110,30 @@ def test_listener_thread_receives_committed_changes(pg_engine, project):
     finally:
         listener.stop()
     assert not listener.is_alive()
+
+
+def test_queueing_many_jobs_sends_one_jobs_payload_per_project(pg_engine, project, received):
+    """Jobs notify per statement, not per row: queueing 500 images is one message, not 500."""
+    with pg_engine.begin() as c:
+        ids = [add_image(c, project, f"{n}.jpg") for n in range(3)]
+    received()
+
+    with pg_engine.begin() as c:
+        c.execute(text("insert into jobs (project_id, image_id, kind, engine) "
+                       "select :p, i, 'annotate', 'gemini' from unnest(cast(:ids as bigint[])) as i"),
+                  {"p": project, "ids": ids})
+    with pg_engine.begin() as c:
+        c.execute(text("update jobs set status = 'cancelled' where project_id = :p"), {"p": project})
+
+    assert received() == [
+        {"type": "jobs", "op": "insert", "projectId": project},
+        {"type": "jobs", "op": "update", "projectId": project},
+    ]
+
+
+def test_activity_entries_send_a_payload_each(pg_engine, project, received):
+    with pg_engine.begin() as c:
+        entry_id = c.execute(text("insert into activity_log (project_id, message) values (:p, 'hello') returning id"),
+                             {"p": project}).scalar_one()
+
+    assert received() == [{"type": "activity", "op": "insert", "id": entry_id, "projectId": project}]

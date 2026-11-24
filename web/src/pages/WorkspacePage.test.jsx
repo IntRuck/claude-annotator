@@ -9,6 +9,8 @@ import { getProject } from '@/features/projects/api/projectsApi';
 import { listClasses } from '@/features/classes/api/classesApi';
 import { listImages, setFlag } from '@/features/images/api/imagesApi';
 import { getBoxes, saveBoxes } from '@/features/editor/api/labelsApi';
+import { getJobSummary, queueJobs } from '@/features/jobs/api/jobsApi';
+import { listActivity } from '@/features/activity/api/activityApi';
 import WorkspacePage from './WorkspacePage';
 
 vi.mock('react-konva', () => import('@/test/konvaStub'));
@@ -22,6 +24,8 @@ vi.mock('@/features/images/api/imagesApi', () => ({
   fileUrl: (id) => `/api/images/${id}/file`,
 }));
 vi.mock('@/features/editor/api/labelsApi', () => ({ getBoxes: vi.fn(), saveBoxes: vi.fn() }));
+vi.mock('@/features/jobs/api/jobsApi', () => ({ getJobSummary: vi.fn(), queueJobs: vi.fn(), stopJobs: vi.fn() }));
+vi.mock('@/features/activity/api/activityApi', () => ({ listActivity: vi.fn() }));
 
 const image = (id, fileName, status = 'unlabeled', extra = {}) => ({
   id, projectId: 4, fileName, status, width: 640, height: 480, boxCount: 0, flagged: false, flagReason: '', flagNote: '',
@@ -55,6 +59,10 @@ describe('WorkspacePage', () => {
       image: image(id, id === 1 ? 'a.jpg' : 'b.jpg', body.status, { updatedAt: `T${id}-saved` }), boxes: body.boxes,
     }));
     setFlag.mockReset().mockResolvedValue(image(1, 'a.jpg', 'unlabeled', { flagged: true }));
+    getJobSummary.mockReset().mockResolvedValue({ queued: 0, running: [] });
+    queueJobs.mockReset().mockResolvedValue({ matched: 1, queued: 1, alreadyQueued: 0 });
+    listActivity.mockReset().mockResolvedValue([]);
+    localStorage.clear();
   });
 
   it('loads the project from the URL and shows its name and classes', async () => {
@@ -195,6 +203,88 @@ describe('WorkspacePage', () => {
       await waitFor(() => expect(within(screen.getByRole('button', { name: /b\.jpg/ })).getByText('4')).toBeInTheDocument());
       expect(screen.getByRole('option', { name: 'Approved (1)' })).toBeInTheDocument();
       expect(screen.getByRole('option', { name: 'Labeled by AI (not checked) (0)' })).toBeInTheDocument();
+    });
+  });
+
+  describe('AI', () => {
+    const GEMINI = { engine: 'gemini', options: { model: 'gemini-3.5-flash-lite', extra: '' } };
+
+    it('Label all unlabeled queues the unlabeled images with the chosen engine', async () => {
+      renderPage();
+      await waitForImage(1);
+      await userEvent.click(screen.getByRole('button', { name: 'Label all unlabeled' }));
+      await waitFor(() => expect(queueJobs).toHaveBeenCalledWith(4, { target: 'unlabeled', ...GEMINI }));
+    });
+
+    it('Find objects with AI saves unsaved edits first, then queues this image', async () => {
+      renderPage();
+      await waitForImage(1);
+      await userEvent.click(screen.getByRole('tab', { name: /^Boxes/ }));
+      await userEvent.click(screen.getByRole('button', { name: 'Delete box' }));
+
+      await userEvent.click(screen.getByRole('button', { name: /Find objects with AI/ }));
+
+      await waitFor(() => expect(queueJobs).toHaveBeenCalledWith(4, { target: 'image', imageId: 1, ...GEMINI }));
+      expect(saveBoxes).toHaveBeenCalledWith(1, { boxes: [], status: 'edited', expectedUpdatedAt: 'T1' });
+      expect(saveBoxes.mock.invocationCallOrder[0]).toBeLessThan(queueJobs.mock.invocationCallOrder[0]);
+    });
+
+    it('without classes the SKU manager opens instead, like today', async () => {
+      listClasses.mockResolvedValue([]);
+      renderPage();
+      const intro = await screen.findByRole('dialog');
+      await userEvent.click(within(intro).getByRole('button', { name: 'Close' }));
+      await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+
+      await userEvent.click(screen.getByRole('button', { name: 'Label all unlabeled' }));
+
+      expect(await screen.findByRole('dialog')).toBeInTheDocument();
+      expect(queueJobs).not.toHaveBeenCalled();
+    });
+
+    it('says when there was nothing to label', async () => {
+      queueJobs.mockResolvedValue({ matched: 0, queued: 0, alreadyQueued: 0 });
+      renderPage();
+      await waitForImage(1);
+      await userEvent.click(screen.getByRole('button', { name: 'Label all unlabeled' }));
+      expect(await screen.findByText('Nothing to label')).toBeInTheDocument();
+    });
+
+    describe('live', () => {
+      beforeEach(() => {
+        FakeEventSource.instances = [];
+        vi.stubGlobal('EventSource', FakeEventSource);
+      });
+      afterEach(() => {
+        vi.unstubAllGlobals();
+      });
+
+      async function openLive() {
+        const page = renderPage();
+        await waitForImage(1);
+        act(() => FakeEventSource.latest().open());
+        await waitFor(() => expect(page.client.isFetching()).toBe(0));
+        return page;
+      }
+
+      it('shows what the AI is working on', async () => {
+        await openLive();
+        act(() => FakeEventSource.latest().emit({
+          type: 'jobs', op: 'summary',
+          data: { queued: 3, running: [{ id: 9, imageId: 2, fileName: 'b.jpg', engine: 'gemini', kind: 'annotate' }] },
+        }));
+        expect(await screen.findByText('Labeling b.jpg… · 3 waiting')).toBeInTheDocument();
+      });
+
+      it('new activity appears in the log', async () => {
+        await openLive();
+        act(() => FakeEventSource.latest().emit({
+          type: 'activity', op: 'insert',
+          data: { id: 5, level: 'info', message: 'b.jpg: 2 box(es) in 1.2s (via gemini)', jobId: 9, imageId: 2,
+                  createdAt: '2026-11-24T08:00:00Z' },
+        }));
+        expect(await screen.findByText('b.jpg: 2 box(es) in 1.2s (via gemini)')).toBeInTheDocument();
+      });
     });
   });
 });
