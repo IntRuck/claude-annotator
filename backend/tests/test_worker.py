@@ -17,9 +17,10 @@ from tests.labeling.conftest import FakeEngine
 @pytest.mark.parametrize(("payload", "wakes"), [
     ({"type": "jobs", "op": "insert", "projectId": 1}, True),
     ({"type": "jobs", "op": "update", "projectId": 1}, True),
+    ({"type": "worker", "op": "delete", "id": "gemini", "projectId": None}, True),     # Resume
     ({"type": "images", "op": "update", "id": 3, "projectId": 1}, False),
 ])
-def test_only_job_changes_wake_the_worker(payload, wakes):
+def test_only_job_changes_and_resume_wake_the_worker(payload, wakes):
     assert wakes_worker(json.dumps(payload)) is wakes
 
 
@@ -50,7 +51,7 @@ def test_a_unit_of_work_commits_when_the_step_succeeds_and_rolls_back_when_it_fa
 
     unit = make_unit(factory, FakeStorage())
     with unit() as services:
-        assert services.jobs and services.labeling
+        assert services.jobs and services.labeling and services.engine_status
     with pytest.raises(ValueError):
         with unit():
             raise ValueError("boom")

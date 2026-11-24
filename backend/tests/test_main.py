@@ -170,3 +170,14 @@ def test_every_stream_is_told_to_resync_when_the_listener_reconnects():
         sub = c.portal.call(lambda: broadcaster.subscribe(9))
         made["listener"].on_connect()
         assert c.portal.call(sub.get) == {"type": "resync"}
+
+
+def test_a_change_without_a_project_reaches_every_stream():
+    """Worker status and engine pauses belong to no project: every open tab hears about them."""
+    app, _, made = app_with_fakes(build_message=lambda payload: (None, {"type": "worker"}))
+    with TestClient(app) as c:
+        broadcaster = app.state.broadcaster
+        one = c.portal.call(lambda: broadcaster.subscribe(1))
+        two = c.portal.call(lambda: broadcaster.subscribe(2))
+        made["listener"].on_payload("raw")
+        assert c.portal.call(one.get) == c.portal.call(two.get) == {"type": "worker"}

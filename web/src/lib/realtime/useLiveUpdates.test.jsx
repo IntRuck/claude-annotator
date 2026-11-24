@@ -39,6 +39,7 @@ describe('useLiveUpdates', () => {
     act(() => latest().open());
     expect(invalidate).toHaveBeenCalledWith({ queryKey: queryKeys.project(4) });
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ['images'] });
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: queryKeys.engines() });
 
     invalidate.mockClear();
     act(() => latest().fail());

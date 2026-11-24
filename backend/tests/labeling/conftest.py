@@ -13,8 +13,9 @@ from annotator.job.service import JobService
 from annotator.label.service import LabelService
 from annotator.labeling.service import LabelingService
 from annotator.project.service import ProjectService
+from annotator.worker_status.service import WorkerStatusService
 from tests.fakes import (FakeActivityRepository, FakeClassRepository, FakeImageRepository, FakeJobRepository,
-                         FakeLabelRepository, FakeProjectRepository, FakeStorage)
+                         FakeLabelRepository, FakeProjectRepository, FakeStorage, FakeWorkerStatusRepository)
 
 
 def jpeg(size=(100, 50)) -> bytes:
@@ -65,9 +66,12 @@ class World:
         self.labels = LabelService(self.label_repo, self.images, self.classes)
         self.activity_repo = FakeActivityRepository()
         self.activity = ActivityService(self.activity_repo, self.projects)
-        self.job_repo = FakeJobRepository()
+        self.worker_repo = FakeWorkerStatusRepository()
+        self.engine_status = WorkerStatusService(self.worker_repo)
+        self.job_repo = FakeJobRepository(pauses=self.worker_repo)
         self.jobs = JobService(self.job_repo, self.projects, self.images, self.classes, self.activity)
-        self.labeling = LabelingService(self.jobs, self.images, self.classes, self.labels, self.activity)
+        self.labeling = LabelingService(self.jobs, self.images, self.classes, self.labels, self.activity,
+                                        self.engine_status)
         self.engine = FakeEngine([])
 
     def make_engine(self, name, options):

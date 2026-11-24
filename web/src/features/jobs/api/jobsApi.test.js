@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { apiFetch } from '@/lib/apiClient';
-import { getJobSummary, queueJobs, stopJobs } from './jobsApi';
+import { getEngineStatus, getJobSummary, queueJobs, resumeWorker, stopJobs } from './jobsApi';
 
 vi.mock('@/lib/apiClient', () => ({ apiFetch: vi.fn() }));
 
@@ -23,5 +23,12 @@ describe('jobsApi', () => {
   it('reads the job summary', async () => {
     await getJobSummary(4);
     expect(apiFetch).toHaveBeenCalledWith('/projects/4/jobs/summary');
+  });
+
+  it('reads the worker and engine status, and resumes paused engines', async () => {
+    await getEngineStatus();
+    expect(apiFetch).toHaveBeenCalledWith('/engines');
+    await resumeWorker();
+    expect(apiFetch).toHaveBeenCalledWith('/worker/resume', { method: 'POST' });
   });
 });

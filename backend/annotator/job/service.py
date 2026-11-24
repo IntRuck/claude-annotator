@@ -104,11 +104,9 @@ class JobService:
         """Jobs a stopped or crashed worker was running go back to the queue."""
         return self.repo.requeue_running()
 
-    def stop_for_limit(self, job: JobOut, reason: str) -> None:
-        """The engine hit a usage limit: this job fails and the rest for that engine are cancelled, like today's
-        run stopping at a limit. (A later slice keeps them queued and adds Resume.)"""
-        self.finish(job.id, "failed", reason)
-        cancelled = self.repo.cancel_queued(job.project_id, engine=job.engine)
-        self.activity.log(job.project_id, f"{engine_label(job.engine)} usage limit: {reason}. Stopped; "
-                                          f"{cancelled} waiting image(s) cancelled. Run it again after the limit resets.",
-                          level="warning", job_id=job.id, image_id=job.image_id)
+    def requeue(self, job_id: int) -> None:
+        """Back to the queue untouched (its engine hit a usage limit)."""
+        self.repo.requeue(job_id)
+
+    def count_queued(self, project_id: int, engine: str | None = None) -> int:
+        return self.repo.count_queued(project_id, engine)

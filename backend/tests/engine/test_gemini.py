@@ -172,5 +172,28 @@ def test_refine_sends_clean_and_numbered_images_with_the_current_boxes_y_first()
     assert "numbered #0, #1" in prompt
 
 
+def test_list_models_keeps_gemini_models_that_can_generate_content(monkeypatch):
+    listing = {"models": [
+        {"name": "models/gemini-3.5-flash", "supportedGenerationMethods": ["generateContent"]},
+        {"name": "models/gemini-3.5-flash-lite", "supportedGenerationMethods": ["generateContent", "countTokens"]},
+        {"name": "models/gemini-3.5-flash-tts", "supportedGenerationMethods": ["generateContent"]},
+        {"name": "models/gemini-embedding-1", "supportedGenerationMethods": ["embedContent"]},
+        {"name": "models/gemini-2.0-flash-live", "supportedGenerationMethods": ["generateContent"]},
+        {"name": "models/imagen-4", "supportedGenerationMethods": ["predict"]},
+        {"name": "models/gemma-3", "supportedGenerationMethods": ["generateContent"]},
+    ]}
+    engine, requests, _ = engine_with([listing])
+
+    assert engine.list_models() == ["gemini-3.5-flash", "gemini-3.5-flash-lite"]
+    assert str(requests[0].url) == f"{BASE}/models?pageSize=200"
+    assert requests[0].headers["x-goog-api-key"] == "test-key"
+
+
+def test_list_models_says_why_it_failed():
+    engine, _, _ = engine_with([error(403, {"message": "API key not valid"})])
+    with pytest.raises(RuntimeError, match="API key not valid"):
+        engine.list_models()
+
+
 def test_engine_flags():
     assert (GeminiEngine.name, GeminiEngine.supports_refine, GeminiEngine.resize_input) == ("gemini", True, True)

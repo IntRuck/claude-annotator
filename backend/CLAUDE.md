@@ -20,7 +20,7 @@ Live updates (`realtime/`): a V4 trigger sends `NOTIFY annotator_changes` with `
 
 Two entry points, one codebase: the API (`annotator.main:create_app`) and the worker (`python -m annotator.worker`), which runs the AI engines.
 
-AI jobs: the API queues one `jobs` row per image (`job/service.py`). The worker (`job/loop.py`) claims the oldest with `FOR UPDATE SKIP LOCKED`; `labeling/service.py` then loads the image (short transaction), calls the engine (no transaction) and saves boxes, status and an `activity_log` line (short transaction). The worker wakes on the jobs NOTIFY and checks every 5 s anyway. Engines live in `engine/` (registry, shared `vlm_prompts`, one folder per engine).
+AI jobs: the API queues one `jobs` row per image (`job/service.py`). The worker (`job/loop.py`) claims the oldest with `FOR UPDATE SKIP LOCKED`; `labeling/service.py` then loads the image (short transaction), calls the engine (no transaction) and saves boxes, status and an `activity_log` line (short transaction). The worker wakes on the jobs NOTIFY and checks every 5 s anyway. Engines live in `engine/` (registry, shared `vlm_prompts`, one folder per engine). A usage limit (`LimitReached`) puts the job back in the queue and pauses that engine (`engine_pauses`) until `POST /api/worker/resume`. The worker's heartbeat (`worker_status/heartbeat.py`, every 15 s) stores what each engine can do; `GET /api/engines` and the live `worker` message serve it.
 
 ## Hard rules
 

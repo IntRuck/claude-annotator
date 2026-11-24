@@ -132,3 +132,34 @@ def test_cancel_queued_can_be_limited_to_one_engine(db_session, pid):
 
     assert repo.cancel_queued(pid, engine="gemini") == 1
     assert repo.summary(pid)["queued"] == 1
+
+
+def test_jobs_of_a_paused_engine_wait_until_it_is_resumed(db_session, pid):
+    from annotator.worker_status.repository import WorkerStatusRepository
+
+    repo, pauses = JobRepository(db_session), WorkerStatusRepository(db_session)
+    a, b = images(db_session, pid, "a", "b")
+    repo.enqueue(pid, [a], kind="annotate", engine="gemini", options={})
+    repo.enqueue(pid, [b], kind="annotate", engine="ollama", options={})
+    pauses.pause("gemini", "quota")
+
+    assert repo.claim_next().image_id == b
+    assert repo.claim_next() is None
+
+    pauses.resume()
+    assert repo.claim_next().image_id == a
+
+
+def test_requeue_puts_one_job_back_and_count_queued_counts_per_engine(db_session, pid):
+    repo = JobRepository(db_session)
+    a, b, c = images(db_session, pid, "a", "b", "c")
+    repo.enqueue(pid, [a, b], kind="annotate", engine="gemini", options={})
+    repo.enqueue(pid, [c], kind="annotate", engine="ollama", options={})
+    job = repo.claim_next()
+
+    repo.requeue(job.id)
+
+    assert repo.get(job.id).status == "queued"
+    assert repo.get(job.id).started_at is None
+    assert repo.count_queued(pid, engine="gemini") == 2
+    assert repo.count_queued(pid) == 3

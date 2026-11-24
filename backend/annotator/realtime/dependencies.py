@@ -18,8 +18,10 @@ from annotator.realtime.broadcaster import Broadcaster
 from annotator.realtime.notify_listener import NotifyListener
 from annotator.realtime.service import RealtimeService
 from annotator.storage.dependencies import get_storage
+from annotator.worker_status.repository import WorkerStatusRepository
+from annotator.worker_status.service import WorkerStatusService
 
-MessageBuilder = Callable[[str], tuple[int, dict] | None]
+MessageBuilder = Callable[[str], tuple[int | None, dict] | None]   # project None = every open tab
 
 
 def get_broadcaster(request: Request) -> Broadcaster:
@@ -34,7 +36,8 @@ def message_from_payload(raw: str) -> tuple[int, dict] | None:
         classes = ClassService(ClassRepository(session), projects)
         activity = ActivityService(ActivityRepository(session), projects)
         jobs = JobService(JobRepository(session), projects, images, classes, activity)
-        return RealtimeService(images, classes, jobs, activity).to_message(raw)
+        engine_status = WorkerStatusService(WorkerStatusRepository(session))
+        return RealtimeService(images, classes, jobs, activity, engine_status).to_message(raw)
 
 
 def get_message_builder() -> MessageBuilder:

@@ -1,6 +1,6 @@
-import { render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import EngineBar from './EngineBar';
 
 const SETTINGS = { engine: 'gemini', model: 'gemini-3.5-flash-lite', extra: '' };
@@ -57,6 +57,49 @@ describe('EngineBar', () => {
   it('shows a notice instead when a button found nothing to do', () => {
     renderBar({ notice: 'Nothing to label' });
     expect(screen.getByText('Nothing to label')).toBeInTheDocument();
+  });
+
+  describe('what the worker reported', () => {
+    const status = (gemini, lastSeenAt = new Date().toISOString()) => ({
+      workerOnline: true, lastSeenAt, paused: [],
+      engines: { gemini: { label: 'Gemini', ready: true, note: '', models: [], supportsRefine: true, ...gemini } },
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('suggests the models the key can use', () => {
+      renderBar({ engineStatus: status({ models: ['gemini-4-pro', 'gemini-4-flash'] }) });
+      const options = [...document.querySelectorAll('#gemini-models option')].map((o) => o.value);
+      expect(options).toEqual(['gemini-4-pro', 'gemini-4-flash']);
+    });
+
+    it('falls back to the usual models before the worker reported any', () => {
+      renderBar();
+      expect(document.querySelectorAll('#gemini-models option')).toHaveLength(2);
+    });
+
+    it('warns when the chosen engine can not run, with the reason', () => {
+      renderBar({ engineStatus: status({ ready: false, note: 'No Gemini API key. Put GEMINI_API_KEY=...' }) });
+      expect(screen.getByText(/No Gemini API key/)).toHaveClass('engine-note', 'bad');
+    });
+
+    it('says when the worker is not running', () => {
+      renderBar({ engineStatus: status({}, null) });
+      expect(screen.getByText('Worker offline')).toBeInTheDocument();
+    });
+
+    it('notices the worker going quiet without asking the server again', () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(Date.parse('2026-11-24T10:00:00Z'));
+      renderBar({ engineStatus: status({}, '2026-11-24T09:59:30Z') });
+      expect(screen.queryByText('Worker offline')).not.toBeInTheDocument();
+
+      act(() => vi.advanceTimersByTime(20000));
+
+      expect(screen.getByText('Worker offline')).toBeInTheDocument();
+    });
   });
 
   it('can not start another batch while one is being queued', () => {

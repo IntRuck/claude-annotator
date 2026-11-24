@@ -103,7 +103,7 @@ def test_fail_marks_the_image_as_an_error_with_the_reason(w):
     assert (entry.level, entry.message) == ("error", "a.jpg: ERROR Gemini HTTP 500: overloaded")
 
 
-def test_a_usage_limit_leaves_the_image_alone_and_stops_the_rest(w):
+def test_a_usage_limit_pauses_the_engine_and_keeps_every_image_waiting(w):
     image_id = w.upload("a.jpg")
     w.upload("b.jpg")
     w.queue()
@@ -112,7 +112,12 @@ def test_a_usage_limit_leaves_the_image_alone_and_stops_the_rest(w):
     w.labeling.limit_reached(job, "Gemini daily free quota used up")
 
     assert w.status(image_id) == "unlabeled"
-    assert [j.status for j in w.job_repo.rows.values()] == ["failed", "cancelled"]
+    assert [j.status for j in w.job_repo.rows.values()] == ["queued", "queued"]
+    assert [(p.engine, p.reason) for p in w.worker_repo.pauses()] == [("gemini", "Gemini daily free quota used up")]
+    entry = w.activity_repo.rows[-1]
+    assert (entry.level, entry.message) == ("warning", "Gemini usage limit: Gemini daily free quota used up. "
+                                                       "Paused; 2 image(s) wait in the queue. "
+                                                       "Press Resume once the limit resets.")
 
 
 # ---------- refine ----------

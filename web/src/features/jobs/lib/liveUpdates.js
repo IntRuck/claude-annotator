@@ -4,3 +4,8 @@ import { queryKeys } from '@/lib/queryKeys';
 export function applyJobMessage(client, projectId, { data }) {
   client.setQueryData(queryKeys.jobs(projectId), data);
 }
+
+/** Live update for the worker (SSE `{ type: 'worker', op: 'status', data }`): heartbeats and engine pauses. */
+export function applyWorkerMessage(client, projectId, { data }) {
+  client.setQueryData(queryKeys.engines(), data);
+}

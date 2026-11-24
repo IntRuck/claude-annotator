@@ -9,7 +9,7 @@ import { getProject } from '@/features/projects/api/projectsApi';
 import { listClasses } from '@/features/classes/api/classesApi';
 import { listImages, setFlag } from '@/features/images/api/imagesApi';
 import { getBoxes, saveBoxes } from '@/features/editor/api/labelsApi';
-import { getJobSummary, queueJobs } from '@/features/jobs/api/jobsApi';
+import { getEngineStatus, getJobSummary, queueJobs, resumeWorker } from '@/features/jobs/api/jobsApi';
 import { listActivity } from '@/features/activity/api/activityApi';
 import WorkspacePage from './WorkspacePage';
 
@@ -24,7 +24,9 @@ vi.mock('@/features/images/api/imagesApi', () => ({
   fileUrl: (id) => `/api/images/${id}/file`,
 }));
 vi.mock('@/features/editor/api/labelsApi', () => ({ getBoxes: vi.fn(), saveBoxes: vi.fn() }));
-vi.mock('@/features/jobs/api/jobsApi', () => ({ getJobSummary: vi.fn(), queueJobs: vi.fn(), stopJobs: vi.fn() }));
+vi.mock('@/features/jobs/api/jobsApi', () => ({
+  getJobSummary: vi.fn(), queueJobs: vi.fn(), stopJobs: vi.fn(), getEngineStatus: vi.fn(), resumeWorker: vi.fn(),
+}));
 vi.mock('@/features/activity/api/activityApi', () => ({ listActivity: vi.fn() }));
 
 const image = (id, fileName, status = 'unlabeled', extra = {}) => ({
@@ -62,6 +64,8 @@ describe('WorkspacePage', () => {
     getJobSummary.mockReset().mockResolvedValue({ queued: 0, running: [] });
     queueJobs.mockReset().mockResolvedValue({ matched: 1, queued: 1, alreadyQueued: 0 });
     listActivity.mockReset().mockResolvedValue([]);
+    getEngineStatus.mockReset().mockResolvedValue({ workerOnline: true, lastSeenAt: new Date().toISOString(), engines: {}, paused: [] });
+    resumeWorker.mockReset().mockResolvedValue({ resumed: ['gemini'] });
     localStorage.clear();
   });
 
@@ -288,6 +292,19 @@ describe('WorkspacePage', () => {
           data: { queued: 3, running: [{ id: 9, imageId: 2, fileName: 'b.jpg', engine: 'gemini', kind: 'annotate' }] },
         }));
         expect(await screen.findByText('Labeling b.jpg… · 3 waiting')).toBeInTheDocument();
+      });
+
+      it('an engine paused at its usage limit shows a banner, and Resume carries on', async () => {
+        await openLive();
+        act(() => FakeEventSource.latest().emit({
+          type: 'worker', op: 'status',
+          data: { workerOnline: true, lastSeenAt: new Date().toISOString(), engines: {},
+                  paused: [{ engine: 'gemini', label: 'Gemini', reason: 'Gemini daily free quota used up', pausedAt: 'T' }] },
+        }));
+
+        expect(await screen.findByText(/Gemini paused: Gemini daily free quota used up/)).toBeInTheDocument();
+        await userEvent.click(screen.getByRole('button', { name: 'Resume' }));
+        await waitFor(() => expect(resumeWorker).toHaveBeenCalled());
       });
 
       it('new activity appears in the log', async () => {

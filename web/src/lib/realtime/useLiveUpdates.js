@@ -28,6 +28,7 @@ export function useLiveUpdates(projectId, handlers) {
   const catchUp = useEffectEvent(() => {
     client.invalidateQueries({ queryKey: queryKeys.project(projectId) });
     client.invalidateQueries({ queryKey: ['images'] }); // boxes of any open image
+    client.invalidateQueries({ queryKey: queryKeys.engines() });
   });
 
   const onMessage = useEffectEvent((event) => {

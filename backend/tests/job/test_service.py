@@ -226,17 +226,13 @@ def test_recover_puts_jobs_of_a_crashed_worker_back_in_the_queue(w):
     assert w.jobs_repo.get(job.id).status == "queued"
 
 
-def test_a_usage_limit_fails_the_job_and_cancels_the_rest_for_that_engine(w):
-    for n in "abc":
+def test_requeue_puts_a_job_back_and_count_queued_counts_it(w):
+    for n in "ab":
         w.image(f"{n}.jpg")
     w.jobs.queue(1, JobCreate(target="unlabeled"))
     job = w.jobs.claim_next()
 
-    w.jobs.stop_for_limit(job, "Gemini daily free quota used up")
+    w.jobs.requeue(job.id)
 
-    assert [j.status for j in w.jobs_repo.rows.values()] == ["failed", "cancelled", "cancelled"]
-    assert w.jobs_repo.get(job.id).error == "Gemini daily free quota used up"
-    entry = w.activity_repo.rows[-1]
-    assert entry.level == "warning"
-    assert entry.message == ("Gemini usage limit: Gemini daily free quota used up. "
-                             "Stopped; 2 waiting image(s) cancelled. Run it again after the limit resets.")
+    assert w.jobs_repo.get(job.id).status == "queued"
+    assert w.jobs.count_queued(1, engine="gemini") == 2

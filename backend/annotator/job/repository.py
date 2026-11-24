@@ -3,6 +3,7 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
 from annotator.job.models import OPEN, Job
+from annotator.worker_status.models import EnginePause
 
 
 class JobRepository:
@@ -25,8 +26,10 @@ class JobRepository:
         return sorted(self.session.scalars(stmt))
 
     def claim_next(self) -> Job | None:
-        """The oldest queued job, now running. SKIP LOCKED: a job another worker holds is passed over."""
-        oldest = (select(Job.id).where(Job.status == "queued").order_by(Job.id)
+        """The oldest queued job of an engine that isn't paused, now running.
+        SKIP LOCKED: a job another worker holds is passed over."""
+        paused = select(EnginePause.engine)
+        oldest = (select(Job.id).where(Job.status == "queued", Job.engine.not_in(paused)).order_by(Job.id)
                   .limit(1).with_for_update(skip_locked=True).scalar_subquery())
         stmt = (update(Job).where(Job.id == oldest)
                 .values(status="running", started_at=func.clock_timestamp())
@@ -45,6 +48,16 @@ class JobRepository:
             stmt = stmt.where(Job.engine == engine)
         stmt = stmt.values(status="cancelled", finished_at=func.clock_timestamp())
         return self.session.execute(stmt).rowcount
+
+    def requeue(self, job_id: int) -> None:
+        """One job back to the queue (its engine hit a usage limit)."""
+        self.session.execute(update(Job).where(Job.id == job_id).values(status="queued", started_at=None))
+
+    def count_queued(self, project_id: int, engine: str | None = None) -> int:
+        stmt = select(func.count()).where(Job.project_id == project_id, Job.status == "queued")
+        if engine is not None:
+            stmt = stmt.where(Job.engine == engine)
+        return self.session.scalar(stmt)
 
     def requeue_running(self) -> int:
         """After a worker crash or restart: jobs it was running go back to the queue."""

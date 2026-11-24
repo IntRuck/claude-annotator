@@ -106,6 +106,25 @@ class GeminiEngine:
                 raise RuntimeError(f"Gemini HTTP {r.status_code}: {msg[:300]}")
         raise RuntimeError("Gemini: too many retries")
 
+    def list_models(self) -> list[str]:
+        """Gemini models this key can use for generateContent (today's filter). Raises RuntimeError with the reason."""
+        try:
+            with httpx.Client(transport=self.transport, timeout=10) as http:
+                r = http.get(f"{self.base_url}/models", params={"pageSize": 200},
+                             headers={"x-goog-api-key": self.api_key})
+        except httpx.TransportError as e:
+            raise RuntimeError(f"Can't reach the Gemini API ({e})") from e
+        if not r.is_success:
+            try:
+                msg = r.json().get("error", {}).get("message", "")
+            except ValueError:
+                msg = ""
+            raise RuntimeError(msg or f"HTTP {r.status_code}")
+        return sorted(m["name"].removeprefix("models/") for m in r.json().get("models", [])
+                      if "generateContent" in m.get("supportedGenerationMethods", [])
+                      and "gemini" in m.get("name", "")
+                      and not any(x in m["name"] for x in ("tts", "image", "embedding", "live", "audio")))
+
     @staticmethod
     def _text(resp):
         cands = resp.get("candidates") or []

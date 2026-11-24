@@ -13,9 +13,10 @@ from annotator.common.problem import ApiError
 from annotator.engine.geometry import to_1000
 from annotator.image.service import ImageService
 from annotator.job.schemas import JobOut
-from annotator.job.service import JobService
+from annotator.job.service import JobService, engine_label
 from annotator.label.service import LabelService
 from annotator.labeling.image_prep import prepare_for_vlm
+from annotator.worker_status.service import WorkerStatusService
 
 EngineFactory = Callable[[str, dict], object]
 
@@ -64,12 +65,13 @@ def _reason(error: Exception | str) -> str:
 
 class LabelingService:
     def __init__(self, jobs: JobService, images: ImageService, classes: ClassService, labels: LabelService,
-                 activity: ActivityService):
+                 activity: ActivityService, engine_status: WorkerStatusService):
         self.jobs = jobs
         self.images = images
         self.classes = classes
         self.labels = labels
         self.activity = activity
+        self.engine_status = engine_status
 
     def load(self, job: JobOut) -> LabelTask | None:
         """Everything the engine needs. None when the image was labelled by hand after a batch queued it."""
@@ -118,4 +120,11 @@ class LabelingService:
                           job_id=job.id, image_id=job.image_id)
 
     def limit_reached(self, job: JobOut, reason: str) -> None:
-        self.jobs.stop_for_limit(job, reason)
+        """A usage limit or quota: the image is left alone, its job goes back to the queue, and the engine pauses
+        (other engines carry on). Resume continues where it stopped; today's run just stopped."""
+        self.jobs.requeue(job.id)
+        self.engine_status.pause(job.engine, reason)
+        waiting = self.jobs.count_queued(job.project_id, engine=job.engine)
+        self.activity.log(job.project_id, f"{engine_label(job.engine)} usage limit: {reason}. Paused; {waiting} "
+                                          "image(s) wait in the queue. Press Resume once the limit resets.",
+                          level="warning", job_id=job.id, image_id=job.image_id)

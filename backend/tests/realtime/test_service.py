@@ -11,8 +11,9 @@ from annotator.job.schemas import JobCreate
 from annotator.job.service import JobService
 from annotator.project.service import ProjectService
 from annotator.realtime.service import RealtimeService
+from annotator.worker_status.service import WorkerStatusService
 from tests.fakes import (FakeActivityRepository, FakeClassRepository, FakeImageRepository, FakeJobRepository,
-                         FakeProjectRepository, FakeStorage)
+                         FakeProjectRepository, FakeStorage, FakeWorkerStatusRepository, NOW)
 
 
 @pytest.fixture
@@ -28,7 +29,9 @@ def service():
     jobs = JobService(FakeJobRepository(), projects, images, classes, activity)
     jobs.queue(1, JobCreate(target="unlabeled"))      # one job, and one activity entry
     jobs.claim_next()
-    return RealtimeService(images, classes, jobs, activity)
+    engine_status = WorkerStatusService(FakeWorkerStatusRepository(), now=lambda: NOW)
+    engine_status.pause("gemini", "quota")
+    return RealtimeService(images, classes, jobs, activity, engine_status)
 
 
 def payload(**fields) -> str:
@@ -85,6 +88,13 @@ def test_a_new_activity_entry_becomes_its_dto(service):
         1, {"type": "activity", "op": "insert", "data": {
             "id": 1, "level": "info", "message": "Queued 1 image(s) for Gemini (gemini-3.5-flash-lite)",
             "jobId": None, "imageId": None, "createdAt": "2026-11-23T00:00:00Z"}})
+
+
+def test_worker_and_pause_changes_become_the_engine_status_for_every_project(service):
+    project_id, message = service.to_message(payload(type="worker", op="update", id="pc:1", projectId=None))
+    assert project_id is None                           # no project: sent to every open tab
+    assert (message["type"], message["op"]) == ("worker", "status")
+    assert message["data"]["paused"][0]["reason"] == "quota"
 
 
 def test_an_activity_entry_gone_before_we_read_it_is_skipped(service):

@@ -9,6 +9,7 @@ from annotator.image.service import ImageService
 from annotator.job.service import JobService
 from annotator.project.service import ProjectService
 from annotator.realtime.broadcaster import Broadcaster, Subscription
+from annotator.worker_status.service import WorkerStatusService
 
 log = logging.getLogger(__name__)
 
@@ -21,15 +22,19 @@ class RealtimeService:
     - images / classes / activity (`{type, op, id, projectId}`): `data` is the same DTO the REST API returns,
       or just the id for a delete.
     - jobs (`{type, op, projectId}`, one per statement): `{type: "jobs", op: "summary", data: JobSummary}`.
+    - worker (heartbeats and engine pauses, no project): `{type: "worker", op: "status", data: EngineStatus}`,
+      returned with project None, which means every open tab.
     """
 
-    def __init__(self, images: ImageService, classes: ClassService, jobs: JobService, activity: ActivityService):
+    def __init__(self, images: ImageService, classes: ClassService, jobs: JobService, activity: ActivityService,
+                 engine_status: WorkerStatusService):
         self.images = images
         self.classes = classes
         self.jobs = jobs
         self.activity = activity
+        self.engine_status = engine_status
 
-    def to_message(self, raw: str) -> tuple[int, dict] | None:
+    def to_message(self, raw: str) -> tuple[int | None, dict] | None:
         try:
             payload = json.loads(raw)
             kind, op, project_id = payload["type"], payload["op"], payload["projectId"]
@@ -37,6 +42,9 @@ class RealtimeService:
                 return None
             if kind == "jobs":
                 return project_id, self._jobs(project_id)
+            if kind == "worker":
+                return None, {"type": "worker", "op": "status",
+                              "data": self.engine_status.status().model_dump(by_alias=True, mode="json")}
             row_id = payload["id"]
         except (ValueError, KeyError, TypeError):
             log.warning("Live updates: skipped a payload it couldn't read: %.200s", raw)

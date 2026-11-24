@@ -14,7 +14,7 @@ CAN = {"cls": 0, "x1": 0.1, "y1": 0.1, "x2": 0.5, "y2": 0.5}
 def loop_for(w: World, **kw) -> JobLoop:
     @contextmanager
     def unit():
-        yield SimpleNamespace(jobs=w.jobs, labeling=w.labeling)
+        yield SimpleNamespace(jobs=w.jobs, labeling=w.labeling, engine_status=w.engine_status)
 
     return JobLoop(unit, w.make_engine, wake=kw.pop("wake", threading.Event()), stop=kw.pop("stop", threading.Event()),
                    **kw)
@@ -50,17 +50,22 @@ def test_an_engine_error_marks_that_image_and_the_next_one_still_runs():
     assert (w.status(a), w.status(b)) == ("error", "auto")
 
 
-def test_a_usage_limit_stops_the_rest_without_touching_the_image():
+def test_a_usage_limit_pauses_the_engine_and_resume_carries_on_where_it_stopped():
     w = World()
-    a, _ = w.upload("a.jpg"), w.upload("b.jpg")
+    a, b = w.upload("a.jpg"), w.upload("b.jpg")
     w.queue()
-    w.engine = FakeEngine([LimitReached("quota")])
+    w.engine = FakeEngine([LimitReached("quota"), ([CAN], set()), ([CAN], set())])
     loop = loop_for(w)
 
     loop.run_once()
 
     assert w.status(a) == "unlabeled"
-    assert loop.run_once() is False
+    assert loop.run_once() is False                  # paused: nothing for the worker to take
+
+    w.engine_status.resume()
+    loop.run_once()
+    loop.run_once()
+    assert (w.status(a), w.status(b)) == ("auto", "auto")
 
 
 def test_an_image_labelled_by_hand_meanwhile_never_reaches_the_engine():

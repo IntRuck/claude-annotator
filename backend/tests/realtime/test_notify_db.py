@@ -137,3 +137,17 @@ def test_activity_entries_send_a_payload_each(pg_engine, project, received):
                              {"p": project}).scalar_one()
 
     assert received() == [{"type": "activity", "op": "insert", "id": entry_id, "projectId": project}]
+
+
+def test_worker_heartbeats_and_engine_pauses_send_a_worker_payload(pg_engine, received):
+    with pg_engine.begin() as c:
+        c.execute(text("insert into worker_status (worker_id) values ('pc:9')"))
+        c.execute(text("insert into engine_pauses (engine, reason) values ('gemini', 'quota')"))
+    try:
+        payloads = received()
+        assert [(p["type"], p["op"], p["projectId"]) for p in payloads] == [
+            ("worker", "insert", None), ("worker", "insert", None)]
+    finally:
+        with pg_engine.begin() as c:
+            c.execute(text("delete from worker_status where worker_id = 'pc:9'"))
+            c.execute(text("delete from engine_pauses where engine = 'gemini'"))

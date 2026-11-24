@@ -5,6 +5,8 @@ table (the same channel the API's live updates use) and checks the queue every f
 """
 import json
 import logging
+import os
+import socket
 import threading
 from collections.abc import Callable
 from contextlib import contextmanager
@@ -17,8 +19,9 @@ from annotator.activity.repository import ActivityRepository
 from annotator.activity.service import ActivityService
 from annotator.classes.repository import ClassRepository
 from annotator.classes.service import ClassService
-from annotator.config.settings import get_settings
+from annotator.config.settings import Settings, get_settings
 from annotator.db.session import libpq_dsn, open_session
+from annotator.engine.gemini.client import GeminiEngine
 from annotator.engine.registry import make_engine
 from annotator.image.repository import ImageRepository
 from annotator.image.service import ImageService
@@ -33,13 +36,17 @@ from annotator.project.service import ProjectService
 from annotator.realtime.notify_listener import NotifyListener
 from annotator.storage.dependencies import get_storage
 from annotator.storage.storage_service import StorageService
+from annotator.worker_status.heartbeat import Heartbeat, engine_availability
+from annotator.worker_status.repository import WorkerStatusRepository
+from annotator.worker_status.service import WorkerStatusService
 
 log = logging.getLogger("annotator.worker")
 
 
 def wakes_worker(raw: str) -> bool:
+    """New or changed jobs, and worker/pause changes (a Resume) are worth a look at the queue."""
     try:
-        return json.loads(raw).get("type") == "jobs"
+        return json.loads(raw).get("type") in ("jobs", "worker")
     except (ValueError, AttributeError):
         return False
 
@@ -51,7 +58,9 @@ def build_services(session: Session, storage: StorageService) -> SimpleNamespace
     activity = ActivityService(ActivityRepository(session), projects)
     jobs = JobService(JobRepository(session), projects, images, classes, activity)
     labels = LabelService(LabelRepository(session), images, classes)
-    return SimpleNamespace(jobs=jobs, labeling=LabelingService(jobs, images, classes, labels, activity))
+    engine_status = WorkerStatusService(WorkerStatusRepository(session))
+    return SimpleNamespace(jobs=jobs, engine_status=engine_status,
+                           labeling=LabelingService(jobs, images, classes, labels, activity, engine_status))
 
 
 def make_unit(session_factory: Callable[[], Session], storage: StorageService):
@@ -71,15 +80,30 @@ def make_unit(session_factory: Callable[[], Session], storage: StorageService):
     return unit
 
 
+def make_heartbeat(unit, worker_id: str, settings: Settings) -> Heartbeat:
+    def beat(engines: dict) -> None:
+        with unit() as s:
+            s.engine_status.heartbeat(worker_id, engines)
+
+    def gone() -> None:
+        with unit() as s:
+            s.engine_status.stopped(worker_id)
+
+    gemini = GeminiEngine(api_key=settings.gemini_api_key, base_url=settings.gemini_base_url)
+    return Heartbeat(beat, gone, availability=partial(engine_availability, settings, gemini.list_models))
+
+
 def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
     settings = get_settings()
     wake, stop = threading.Event(), threading.Event()
+    unit = make_unit(open_session, get_storage())
     listener = NotifyListener(libpq_dsn(), on_payload=lambda raw: wake.set() if wakes_worker(raw) else None,
                               on_connect=wake.set)
-    loop = JobLoop(make_unit(open_session, get_storage()), partial(make_engine, settings=settings),
-                   wake=wake, stop=stop)
+    heartbeat = make_heartbeat(unit, f"{socket.gethostname()}:{os.getpid()}", settings)
+    loop = JobLoop(unit, partial(make_engine, settings=settings), wake=wake, stop=stop)
     listener.start()
+    heartbeat.start()
     log.info("Worker started; waiting for jobs (Ctrl+C stops it; an image cut off goes back in the queue)")
     try:
         loop.run_forever()
@@ -87,6 +111,7 @@ def main() -> None:
         log.info("Stopping")
     finally:
         stop.set()
+        heartbeat.stop()
         listener.stop()
 
 

@@ -20,6 +20,7 @@ from annotator.realtime.dependencies import get_listener_factory, get_message_bu
 from annotator.realtime.router import router as realtime_router
 from annotator.storage.dependencies import get_storage
 from annotator.storage.storage_service import EXPORTS_BUCKET, IMAGES_BUCKET, StorageError
+from annotator.worker_status.router import router as worker_status_router
 
 log = logging.getLogger(__name__)
 
@@ -42,8 +43,13 @@ async def lifespan(app: FastAPI):
 
     def forward(raw: str) -> None:
         result = build_message(raw)
-        if result is not None:
-            broadcaster.publish_from_thread(*result)
+        if result is None:
+            return
+        project_id, message = result
+        if project_id is None:
+            broadcaster.publish_all_from_thread(message)     # worker status: not about one project
+        else:
+            broadcaster.publish_from_thread(project_id, message)
 
     # On every (re)connect, open tabs refetch: changes made while the listener was away were missed.
     listener = _resolve(app, get_listener_factory)(
@@ -84,5 +90,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(label_router)
     app.include_router(job_router)
     app.include_router(activity_router)
+    app.include_router(worker_status_router)
     app.include_router(realtime_router)
     return app

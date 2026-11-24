@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/queryKeys';
-import { getJobSummary, queueJobs, stopJobs } from '../api/jobsApi';
+import { getEngineStatus, getJobSummary, queueJobs, resumeWorker, stopJobs } from '../api/jobsApi';
 
 /** What the AI is doing for this project. Kept current by live updates; no polling. */
 export function useJobSummary(projectId) {
@@ -21,4 +21,17 @@ export function useQueueJobs(projectId) {
 export function useStopJobs(projectId) {
   const refresh = useRefreshSummary(projectId);
   return useMutation({ mutationFn: () => stopJobs(projectId), onSuccess: refresh });
+}
+
+/** Worker heartbeat and engine pauses. Kept current by live updates; no polling. */
+export function useEngineStatus() {
+  return useQuery({ queryKey: queryKeys.engines(), queryFn: getEngineStatus });
+}
+
+export function useResumeWorker() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: () => resumeWorker(),
+    onSuccess: () => client.invalidateQueries({ queryKey: queryKeys.engines() }),
+  });
 }

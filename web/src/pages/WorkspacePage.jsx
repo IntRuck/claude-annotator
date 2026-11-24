@@ -7,7 +7,8 @@ import { ImageStrip, UploadImages, applyImageMessage, fileUrl, stepFrom, useImag
 import { ImportDataset } from '@/features/importer';
 import { BoxPanel, Editor, ReviewPanel, useEditor } from '@/features/editor';
 import {
-  EngineBar, applyJobMessage, engineInfo, noticeFor, useEngineSettings, useJobSummary, useQueueJobs, useStopJobs,
+  EngineBar, PausedBanner, applyJobMessage, applyWorkerMessage, engineInfo, noticeFor, useEngineSettings,
+  useEngineStatus, useJobSummary, useQueueJobs, useResumeWorker, useStopJobs,
 } from '@/features/jobs';
 import { ActivityLog, applyActivityMessage, useActivity } from '@/features/activity';
 import { useLiveUpdates } from '@/lib/realtime/useLiveUpdates';
@@ -15,6 +16,7 @@ import './pages.css';
 
 const LIVE_HANDLERS = {
   images: applyImageMessage, classes: applyClassMessage, jobs: applyJobMessage, activity: applyActivityMessage,
+  worker: applyWorkerMessage,
 };
 const LIVE = {
   live: ['Live', 'Changes from other tabs and the AI show up here as they happen'],
@@ -35,6 +37,8 @@ export default function WorkspacePage() {
   const jobs = useJobSummary(projectId);
   const queueJobs = useQueueJobs(projectId);
   const stopJobs = useStopJobs(projectId);
+  const engineStatus = useEngineStatus();
+  const resume = useResumeWorker();
   const activity = useActivity(projectId);
   const [aiNotice, setAiNotice] = useState('');
   const [skuOpen, setSkuOpen] = useState(false);
@@ -133,9 +137,11 @@ export default function WorkspacePage() {
         <Link to="/" className="brand">Claude Annotator</Link>
         <h1>{project.data?.name ?? ''}</h1>
         <EngineBar settings={engine} summary={jobs.data} notice={aiNotice} busy={queueJobs.isPending}
+                   engineStatus={engineStatus.data}
                    onChange={(patch) => { setEngine(patch); setAiNotice(''); }}
                    onRunAll={() => runAi('unlabeled')} onRefineAll={() => runAi('auto', 'refine')}
                    onStop={() => stopJobs.mutate()} />
+        <PausedBanner paused={engineStatus.data?.paused} busy={resume.isPending} onResume={() => resume.mutate()} />
         <span className={`live-status ${live}`} title={LIVE[live][1]}>{LIVE[live][0]}</span>
         <button type="button" onClick={() => openDialog(setImportOpen)}>Import dataset</button>
         <button type="button" onClick={() => openDialog(setSkuOpen)}>SKUs</button>

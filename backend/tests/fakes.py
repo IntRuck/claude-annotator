@@ -11,6 +11,7 @@ from annotator.classes.repository import ClassNameTakenError
 from annotator.image.models import Image
 from annotator.job.models import OPEN, Job
 from annotator.project.models import Project
+from annotator.worker_status.models import EnginePause, WorkerStatus
 
 NOW = datetime(2026, 11, 23, tzinfo=timezone.utc)
 
@@ -155,10 +156,12 @@ class FakeLabelRepository:
 
 
 class FakeJobRepository:
-    """Jobs in a dict; same rules as the SQL (one open job per image, oldest queued claimed first)."""
+    """Jobs in a dict; same rules as the SQL (one open job per image, oldest queued claimed first, jobs of a paused
+    engine wait). Pass the FakeWorkerStatusRepository that holds the pauses."""
 
-    def __init__(self):
+    def __init__(self, pauses: "FakeWorkerStatusRepository | None" = None):
         self.rows: dict[int, Job] = {}
+        self.pauses = pauses
 
     def get(self, job_id: int) -> Job | None:
         return self.rows.get(job_id)
@@ -178,11 +181,20 @@ class FakeJobRepository:
         return ids
 
     def claim_next(self) -> Job | None:
-        queued = sorted((j for j in self.rows.values() if j.status == "queued"), key=lambda j: j.id)
+        paused = set(self.pauses.paused) if self.pauses else set()
+        queued = sorted((j for j in self.rows.values() if j.status == "queued" and j.engine not in paused),
+                        key=lambda j: j.id)
         if not queued:
             return None
         queued[0].status, queued[0].started_at = "running", NOW
         return queued[0]
+
+    def requeue(self, job_id):
+        self.rows[job_id].status, self.rows[job_id].started_at = "queued", None
+
+    def count_queued(self, project_id, engine=None) -> int:
+        return sum(1 for j in self.rows.values() if j.project_id == project_id and j.status == "queued"
+                   and (engine is None or j.engine == engine))
 
     def finish(self, job_id, status, error=""):
         job = self.rows.get(job_id)
@@ -226,3 +238,36 @@ class FakeActivityRepository:
 
     def messages(self, project_id=None) -> list[str]:
         return [e.message for e in self.rows if project_id is None or e.project_id == project_id]
+
+
+class FakeWorkerStatusRepository:
+    """Heartbeats and pauses in dicts. Move `clock` to make a heartbeat old."""
+
+    def __init__(self):
+        self.workers: dict[str, WorkerStatus] = {}
+        self.paused: dict[str, EnginePause] = {}
+        self.clock = NOW
+
+    def heartbeat(self, worker_id, engines):
+        row = self.workers.get(worker_id) or WorkerStatus(worker_id=worker_id, started_at=self.clock)
+        row.engines, row.last_seen_at = engines, self.clock
+        self.workers[worker_id] = row
+
+    def remove(self, worker_id):
+        self.workers.pop(worker_id, None)
+
+    def latest(self):
+        return max(self.workers.values(), key=lambda w: w.last_seen_at, default=None)
+
+    def pauses(self):
+        return sorted(self.paused.values(), key=lambda p: p.paused_at)
+
+    def pause(self, engine, reason):
+        row = self.paused.get(engine) or EnginePause(engine=engine, paused_at=self.clock)
+        row.reason = reason
+        self.paused[engine] = row
+
+    def resume(self):
+        engines = list(self.paused)
+        self.paused.clear()
+        return engines
