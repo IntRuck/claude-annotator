@@ -102,6 +102,18 @@ def test_listing_classes_of_a_missing_project_is_404(service):
     assert error_of(lambda: service.list_classes(42)) == (404, "PROJECT_NOT_FOUND")
 
 
+# ---------- get one ----------
+def test_get_class_returns_one_class(service):
+    add(service, "can")
+    add(service, "jar", prompt="glass jar")
+    assert service.get_class(1, 1).model_dump() == {"index": 1, "name": "jar", "detector_prompt": "glass jar",
+                                                    "description": ""}
+
+
+def test_get_unknown_class_is_404(service):
+    assert error_of(lambda: service.get_class(1, 5)) == (404, "CLASS_NOT_FOUND")
+
+
 # ---------- import helpers ----------
 def test_import_classes_adds_the_whole_list_in_order_when_the_project_has_none(service):
     created = service.import_classes(1, [("sardine", "red tin", "Short red tin"), ("spray bottle", "", "")])

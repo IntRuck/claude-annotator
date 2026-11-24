@@ -27,6 +27,12 @@ class ClassService:
         self.projects.get_project(project_id)
         return [ClassOut.model_validate(c) for c in self.repo.list_for_project(project_id)]
 
+    def get_class(self, project_id: int, class_index: int) -> ClassOut:
+        row = self.repo.get(project_id, class_index)
+        if row is None:
+            raise ApiError(404, "CLASS_NOT_FOUND", f"Class {class_index} doesn't exist in this project.")
+        return ClassOut.model_validate(row)
+
     def add_class(self, project_id: int, body: ClassCreate) -> ClassOut:
         self.projects.get_project(project_id)
         name = _clean_required_name(body.name)

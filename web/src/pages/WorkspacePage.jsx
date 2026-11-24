@@ -2,11 +2,19 @@ import { useCallback, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { EmptyState, ErrorBanner, LoadingState } from '@/components/ui';
 import { useProject } from '@/features/projects';
-import { ClassList, SkuManager, useClasses } from '@/features/classes';
-import { ImageStrip, UploadImages, fileUrl, stepFrom, useImages, useSetFlag } from '@/features/images';
+import { ClassList, SkuManager, applyClassMessage, useClasses } from '@/features/classes';
+import { ImageStrip, UploadImages, applyImageMessage, fileUrl, stepFrom, useImages, useSetFlag } from '@/features/images';
 import { ImportDataset } from '@/features/importer';
 import { BoxPanel, Editor, ReviewPanel, useEditor } from '@/features/editor';
+import { useLiveUpdates } from '@/lib/realtime/useLiveUpdates';
 import './pages.css';
+
+const LIVE_HANDLERS = { images: applyImageMessage, classes: applyClassMessage };
+const LIVE = {
+  live: ['Live', 'Changes from other tabs and the AI show up here as they happen'],
+  connecting: ['Connecting…', 'Connecting to live updates'],
+  offline: ['Offline', 'Live updates are off; reconnecting. Changes made elsewhere show up once it is back'],
+};
 
 /** One project's workspace: classes and boxes (left), editor (middle), review and images (right), like today. */
 export default function WorkspacePage() {
@@ -15,6 +23,7 @@ export default function WorkspacePage() {
   const classes = useClasses(projectId);
   const [filter, setFilter] = useState('all');
   const images = useImages(projectId, filter);
+  const live = useLiveUpdates(projectId, LIVE_HANDLERS);
   const flag = useSetFlag(projectId);
   const [skuOpen, setSkuOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
@@ -81,6 +90,7 @@ export default function WorkspacePage() {
       <header className="workspace-bar">
         <Link to="/" className="brand">Claude Annotator</Link>
         <h1>{project.data?.name ?? ''}</h1>
+        <span className={`live-status ${live}`} title={LIVE[live][1]}>{LIVE[live][0]}</span>
         <button type="button" onClick={() => openDialog(setImportOpen)}>Import dataset</button>
         <button type="button" onClick={() => openDialog(setSkuOpen)}>SKUs</button>
       </header>

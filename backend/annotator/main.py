@@ -1,4 +1,5 @@
 """FastAPI app factory. Feature routers are added here as each slice is built."""
+import asyncio
 import logging
 from contextlib import asynccontextmanager
 
@@ -12,6 +13,9 @@ from annotator.image.router import router as image_router
 from annotator.importer.router import router as import_router
 from annotator.label.router import router as label_router
 from annotator.project.router import router as project_router
+from annotator.realtime.broadcaster import RESYNC, Broadcaster
+from annotator.realtime.dependencies import get_listener_factory, get_message_builder
+from annotator.realtime.router import router as realtime_router
 from annotator.storage.dependencies import get_storage
 from annotator.storage.storage_service import EXPORTS_BUCKET, IMAGES_BUCKET, StorageError
 
@@ -21,13 +25,38 @@ log = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Buckets are created here, not in Flyway, so the migrations stay plain Postgres.
-    storage = app.dependency_overrides.get(get_storage, get_storage)()
+    storage = _resolve(app, get_storage)
     try:
         for bucket in (IMAGES_BUCKET, EXPORTS_BUCKET):
             storage.ensure_bucket(bucket)
     except StorageError as e:
         log.warning("Couldn't check the storage buckets (is `supabase start` running?): %s", e)
-    yield
+
+    # Live updates: the NOTIFY listener thread feeds the broadcaster, which feeds every open SSE stream.
+    broadcaster = Broadcaster()
+    broadcaster.attach(asyncio.get_running_loop())
+    app.state.broadcaster = broadcaster
+    build_message = _resolve(app, get_message_builder)
+
+    def forward(raw: str) -> None:
+        result = build_message(raw)
+        if result is not None:
+            broadcaster.publish_from_thread(*result)
+
+    # On every (re)connect, open tabs refetch: changes made while the listener was away were missed.
+    listener = _resolve(app, get_listener_factory)(
+        on_payload=forward, on_connect=lambda: broadcaster.publish_all_from_thread(RESYNC))
+    listener.start()
+    try:
+        yield
+    finally:
+        broadcaster.shutdown()
+        listener.stop()
+
+
+def _resolve(app: FastAPI, dependency):
+    """Lifespan wiring that tests can swap through app.dependency_overrides, like request dependencies."""
+    return app.dependency_overrides.get(dependency, dependency)()
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -51,4 +80,5 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(image_router)
     app.include_router(import_router)
     app.include_router(label_router)
+    app.include_router(realtime_router)
     return app

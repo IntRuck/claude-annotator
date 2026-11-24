@@ -29,5 +29,6 @@ AI-assisted image labelling for object detection (YOLO). This is its own git rep
 supabase start                                   # local stack (from the repo root)
 docker compose run --rm flyway migrate          # apply migrations (also: info, validate)
 cd backend && .venv/Scripts/python -m pytest      # backend tests (-m db needs Docker)
+cd backend && .venv/Scripts/python -m uvicorn annotator.main:create_app --factory --port 8000 --reload --timeout-graceful-shutdown 3   # API
 cd web && npm test && npm run lint && npm run build
 ```

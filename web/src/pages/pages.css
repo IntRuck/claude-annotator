@@ -6,6 +6,11 @@
 .workspace-bar { grid-column: 1 / -1; display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: var(--panel); border-bottom: 1px solid var(--line); }
 .workspace-bar .brand { font-weight: 700; text-decoration: none; }
 .workspace-bar h1 { flex: 1; margin: 0; font-size: 15px; }
+.live-status { font-size: 12px; color: var(--muted); white-space: nowrap; }
+.live-status::before { content: '●'; margin-right: 4px; }
+.live-status.live::before { color: #16a34a; }
+.live-status.connecting::before { color: #ca8a04; }
+.live-status.offline::before { color: #dc2626; }
 .workspace-left { background: var(--panel); border-right: 1px solid var(--line); padding: 8px; min-height: 0; overflow: auto; }
 .workspace-stage { background: var(--stage); display: flex; align-items: center; justify-content: center; min-height: 0; overflow: hidden; }
 .workspace-stage .ui-empty { color: #c8ccd2; font-size: 14px; }

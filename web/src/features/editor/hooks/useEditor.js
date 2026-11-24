@@ -24,19 +24,31 @@ export function useEditor(image) {
   });
   const mutation = useMutation({ mutationFn: (body) => saveBoxes(imageId, body) });
 
+  const load = (data) => {
+    setVersion(data.updatedAt);
+    setConflict(false);
+    dispatch({ type: 'load', boxes: data.boxes });
+  };
+
   // Adjust state while rendering (React's recommended way to react to a changed prop or new data).
+  let dirty = state.dirty;
   if (shownImage !== imageId) {
     setShownImage(imageId);
     setConflict(false);
     dispatch({ type: 'load', boxes: [] });
+    dirty = false; // the edits belonged to the previous image
   }
-  if (query.data && query.data !== seenData) {
+  // New boxes arrive on first load, on reload, and live when someone else (or the AI) saves this image.
+  // While our own save is on its way, wait: what arrives then is usually that save.
+  if (query.data && query.data !== seenData && !mutation.isPending) {
     setSeenData(query.data);
     // Data we wrote ourselves after a save has our version already, so undo history survives the save.
     if (query.data.updatedAt !== version) {
-      setVersion(query.data.updatedAt);
-      setConflict(false);
-      dispatch({ type: 'load', boxes: query.data.boxes });
+      if (dirty) {
+        setConflict(true); // keep the unsaved edits; Reload brings the newer boxes
+      } else {
+        load(query.data);
+      }
     }
   }
 
@@ -56,10 +68,11 @@ export function useEditor(image) {
 
   const saveIfDirty = () => (state.dirty ? save('edited') : Promise.resolve(null));
 
+  // Load what's saved now, even if a live update already put it in the cache while we kept our edits.
   const reload = async () => {
-    setConflict(false);
     mutation.reset();
-    await query.refetch();
+    const result = await query.refetch();
+    if (result.isSuccess) load(result.data);
   };
 
   return {

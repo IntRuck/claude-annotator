@@ -13,7 +13,17 @@ const IMAGE = { id: 5, projectId: 1, fileName: 'a.jpg', width: 200, height: 100,
 function setup(image = IMAGE) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
   const wrapper = ({ children }) => <QueryClientProvider client={client}>{children}</QueryClientProvider>;
-  return renderHook(({ img }) => useEditor(img), { wrapper, initialProps: { img: image } });
+  const hook = renderHook(({ img }) => useEditor(img), { wrapper, initialProps: { img: image } });
+  return { ...hook, client };
+}
+
+/** What a live update does: the boxes query gets newer data (someone else, or the AI, saved this image). */
+async function boxesChangedElsewhere(client, boxes, updatedAt) {
+  // TanStack tells components about new data on the next tick, so wait one tick for the hook to see it.
+  await act(async () => {
+    client.setQueryData(['images', 5, 'boxes'], { boxes, updatedAt });
+    await new Promise((resolve) => { setTimeout(resolve, 0); });
+  });
 }
 
 describe('useEditor', () => {
@@ -78,5 +88,57 @@ describe('useEditor', () => {
     rerender({ img: { ...IMAGE, id: 6 } });
     await waitFor(() => expect(result.current.state.boxes).toEqual([]));
     expect(getBoxes).toHaveBeenLastCalledWith(6);
+  });
+
+  it('newer boxes saved elsewhere load by themselves when you have no unsaved changes', async () => {
+    const { result, client } = setup();
+    await waitFor(() => expect(result.current.state.boxes).toHaveLength(1));
+
+    await boxesChangedElsewhere(client, [], 'T2');
+
+    expect(result.current.state.boxes).toEqual([]);
+    expect(result.current.conflict).toBe(false);
+  });
+
+  it('newer boxes saved elsewhere keep your unsaved edits and show the conflict; reload brings theirs', async () => {
+    const theirs = { ...BOX, cls: 3 };
+    const { result, client } = setup();
+    await waitFor(() => expect(result.current.state.boxes).toHaveLength(1));
+    act(() => {
+      result.current.dispatch({ type: 'select', index: 0 });
+      result.current.dispatch({ type: 'remove' });
+    });
+
+    await boxesChangedElsewhere(client, [theirs], 'T2');
+
+    expect(result.current.state.boxes).toEqual([]);
+    expect(result.current.conflict).toBe(true);
+
+    getBoxes.mockResolvedValue({ boxes: [theirs], updatedAt: 'T2' });
+    await act(() => result.current.reload());
+    expect(result.current.state.boxes).toEqual([theirs]);
+    expect(result.current.conflict).toBe(false);
+  });
+
+  it('boxes that arrive while your save is on its way are not a conflict (they are your own save)', async () => {
+    let finishSave;
+    saveBoxes.mockReturnValue(new Promise((resolve) => { finishSave = resolve; }));
+    const { result, client } = setup();
+    await waitFor(() => expect(result.current.state.boxes).toHaveLength(1));
+    act(() => {
+      result.current.dispatch({ type: 'select', index: 0 });
+      result.current.dispatch({ type: 'remove' });
+    });
+
+    let saving;
+    act(() => { saving = result.current.save('edited'); });
+    await boxesChangedElsewhere(client, [], 'T2');
+    await act(async () => {
+      finishSave({ image: { ...IMAGE, status: 'edited', updatedAt: 'T2' }, boxes: [] });
+      await saving;
+    });
+
+    expect(result.current.conflict).toBe(false);
+    expect(result.current.state.dirty).toBe(false);
   });
 });

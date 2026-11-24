@@ -16,6 +16,8 @@ Package by feature under `annotator/`, same layers as backend_web with FastAPI f
 
 Shared code: `common/` (problem+json, paging), `config/settings.py` (the only place that reads env), `db/`, `storage/`, `realtime/`.
 
+Live updates (`realtime/`): a V4 trigger sends `NOTIFY annotator_changes` with `{type, op, id, projectId}` on every committed change to `images` or `classes`. `NotifyListener` (its own thread and connection) passes each payload to `RealtimeService.to_message`, which loads the DTO; the `Broadcaster` hands it to the SSE streams of that project (`GET /api/projects/{id}/events`). A new table joins by adding the same trigger and a branch in `to_message`.
+
 Two entry points, one codebase: the API (`annotator.main:create_app`) and the worker (`python -m annotator.worker`), which runs the AI engines.
 
 ## Hard rules
@@ -24,11 +26,15 @@ Two entry points, one codebase: the API (`annotator.main:create_app`) and the wo
 - SQLAlchemy never creates tables (`create_all` is banned).
 - Engine keys (`GEMINI_API_KEY` etc.) are read through `Settings`, never from `os.environ` directly.
 
-## Tests
+## Run and test
 
 Mirror the package under `tests/` (e.g. `annotator/label/service.py` → `tests/label/test_service.py`).
 
 ```bash
+# Run the API (http://127.0.0.1:8000). Open browser tabs keep their live-update (SSE) stream connected,
+# so --timeout-graceful-shutdown lets Ctrl+C finish instead of waiting for every tab to close.
+.venv/Scripts/python -m uvicorn annotator.main:create_app --factory --host 127.0.0.1 --port 8000 --reload --timeout-graceful-shutdown 3
+
 .venv/Scripts/python -m pytest                  # unit + router tests
 .venv/Scripts/python -m pytest -m db            # repository tests (Docker: testcontainers + Flyway)
 .venv/Scripts/python -m pytest tests/legacy     # characterisation tests of today's app.py/backends.py

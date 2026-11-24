@@ -1,8 +1,10 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { act } from 'react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiError } from '@/lib/apiClient';
 import { renderWithProviders } from '@/test/renderWithProviders';
+import { FakeEventSource } from '@/test/fakeEventSource';
 import { getProject } from '@/features/projects/api/projectsApi';
 import { listClasses } from '@/features/classes/api/classesApi';
 import { listImages, setFlag } from '@/features/images/api/imagesApi';
@@ -161,5 +163,38 @@ describe('WorkspacePage', () => {
     expect(await screen.findByText(/changed since you opened it/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Reload' })).toBeInTheDocument();
     expect(stageImage()).toHaveAttribute('src', '/api/images/1/file');
+  });
+
+  describe('live updates', () => {
+    beforeEach(() => {
+      FakeEventSource.instances = [];
+      vi.stubGlobal('EventSource', FakeEventSource);
+    });
+    afterEach(() => {
+      vi.unstubAllGlobals();
+    });
+
+    it('shows when it is connected', async () => {
+      renderPage();
+      expect(await screen.findByText('Connecting…')).toBeInTheDocument();
+      expect(FakeEventSource.latest().url).toBe('/api/projects/4/events');
+      act(() => FakeEventSource.latest().open());
+      expect(await screen.findByText('Live')).toBeInTheDocument();
+    });
+
+    it('an image labelled elsewhere changes in the strip and the counts without a refresh', async () => {
+      const { client } = renderPage();
+      await waitForImage(1);
+      act(() => FakeEventSource.latest().open());
+      await waitFor(() => expect(client.isFetching()).toBe(0));
+
+      act(() => FakeEventSource.latest().emit({
+        type: 'images', op: 'update', data: image(2, 'b.jpg', 'reviewed', { boxCount: 4, updatedAt: 'T2-ai' }),
+      }));
+
+      await waitFor(() => expect(within(screen.getByRole('button', { name: /b\.jpg/ })).getByText('4')).toBeInTheDocument());
+      expect(screen.getByRole('option', { name: 'Approved (1)' })).toBeInTheDocument();
+      expect(screen.getByRole('option', { name: 'Labeled by AI (not checked) (0)' })).toBeInTheDocument();
+    });
   });
 });

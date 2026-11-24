@@ -82,24 +82,91 @@ def test_cors_allows_only_the_web_app_origin():
     assert "access-control-allow-origin" not in bad.headers
 
 
-def test_startup_creates_the_storage_buckets():
+class FakeListener:
+    """Stands in for the NOTIFY listener thread; keeps the callbacks the app gave it."""
+
+    def __init__(self, on_payload, on_connect):
+        self.on_payload, self.on_connect = on_payload, on_connect
+        self.started = self.stopped = False
+
+    def start(self):
+        self.started = True
+
+    def stop(self):
+        self.stopped = True
+
+
+def app_with_fakes(storage=None, build_message=None):
+    from annotator.realtime.dependencies import get_listener_factory, get_message_builder
     from annotator.storage.dependencies import get_storage
     from tests.fakes import FakeStorage
 
-    app, storage = create_app(), FakeStorage()
+    app, made = create_app(), {}
+    storage = storage or FakeStorage()
+
+    def factory():
+        def make(on_payload, on_connect):
+            made["listener"] = FakeListener(on_payload, on_connect)
+            return made["listener"]
+        return make
+
     app.dependency_overrides[get_storage] = lambda: storage
+    app.dependency_overrides[get_listener_factory] = factory
+    if build_message:
+        app.dependency_overrides[get_message_builder] = lambda: build_message
+    return app, storage, made
+
+
+def test_startup_creates_the_storage_buckets():
+    app, storage, _ = app_with_fakes()
     with TestClient(app):
         pass
     assert storage.buckets == ["images", "exports"]
 
 
 def test_startup_still_works_when_storage_is_down():
-    from annotator.storage.dependencies import get_storage
     from annotator.storage.storage_service import StorageError
     from tests.fakes import FakeStorage
 
-    app, storage = create_app(), FakeStorage()
+    storage = FakeStorage()
     storage.fail_with = StorageError(0, "connection refused")
-    app.dependency_overrides[get_storage] = lambda: storage
+    app, _, _ = app_with_fakes(storage)
     with TestClient(app) as c:
         assert c.get("/api/health").status_code == 200
+
+
+def test_live_update_listener_starts_with_the_app_and_stops_with_it():
+    app, _, made = app_with_fakes()
+    with TestClient(app):
+        assert made["listener"].started and not made["listener"].stopped
+    assert made["listener"].stopped
+
+
+def test_a_database_change_reaches_the_streams_of_its_project():
+    """Listener thread -> message builder -> broadcaster -> the project's SSE subscriptions."""
+    app, _, made = app_with_fakes(build_message=lambda payload: (4, {"type": "images", "seen": payload}))
+    with TestClient(app) as c:
+        broadcaster = app.state.broadcaster
+        sub = c.portal.call(lambda: broadcaster.subscribe(4))
+        made["listener"].on_payload("raw")
+        assert c.portal.call(sub.get) == {"type": "images", "seen": "raw"}
+
+
+def test_payloads_the_builder_skips_send_nothing():
+    app, _, made = app_with_fakes(build_message=lambda payload: None)
+    with TestClient(app) as c:
+        broadcaster = app.state.broadcaster
+        sub = c.portal.call(lambda: broadcaster.subscribe(4))
+        made["listener"].on_payload("raw")
+        made["listener"].on_connect()
+        assert c.portal.call(sub.get)["type"] == "resync"
+
+
+def test_every_stream_is_told_to_resync_when_the_listener_reconnects():
+    """Changes made while the listener was disconnected were missed, so open tabs refetch."""
+    app, _, made = app_with_fakes()
+    with TestClient(app) as c:
+        broadcaster = app.state.broadcaster
+        sub = c.portal.call(lambda: broadcaster.subscribe(9))
+        made["listener"].on_connect()
+        assert c.portal.call(sub.get) == {"type": "resync"}
