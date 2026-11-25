@@ -7,8 +7,8 @@ import { ImageStrip, UploadImages, applyImageMessage, fileUrl, stepFrom, useImag
 import { ImportDataset } from '@/features/importer';
 import { BoxPanel, Editor, ReviewPanel, useEditor } from '@/features/editor';
 import {
-  EngineBar, PausedBanner, applyJobMessage, applyWorkerMessage, engineInfo, noticeFor, useEngineSettings,
-  useEngineStatus, useJobSummary, useQueueJobs, useResumeWorker, useStopJobs,
+  EngineBar, PausedBanner, REFINE_NEEDS_VLM, applyJobMessage, applyWorkerMessage, engineInfo, engineOptions,
+  noticeFor, useEngineSettings, useEngineStatus, useJobSummary, useQueueJobs, useResumeWorker, useStopJobs,
 } from '@/features/jobs';
 import { ActivityLog, applyActivityMessage, useActivity } from '@/features/activity';
 import { useLiveUpdates } from '@/lib/realtime/useLiveUpdates';
@@ -105,7 +105,7 @@ export default function WorkspacePage() {
     }
     setAiNotice('');
     const body = { ...(kind === 'refine' ? { kind } : {}), target, ...(target === 'image' ? { imageId: current.id } : {}),
-                   engine: engine.engine, options: { model: engine.model, extra: engine.extra } };
+                   engine: engine.engine, options: engineOptions(engine) };
     const result = await queueJobs.mutateAsync(body).catch(() => null);
     if (result) setAiNotice(noticeFor(result));
   };
@@ -170,11 +170,13 @@ export default function WorkspacePage() {
         <ErrorBanner error={queueJobs.error || stopJobs.error} />
         <button type="button" className="ai-image-button" disabled={!current || queueJobs.isPending}
                 onClick={() => runAi('image')} title="Ask the selected AI to label this image from scratch">
-          ✨ Find objects with AI
+          Find objects with AI
         </button>
         <button type="button" className="ai-image-button secondary"
                 disabled={!current || queueJobs.isPending || !engineInfo(engine.engine).supportsRefine}
-                onClick={() => runAi('image', 'refine')} title="Ask the AI to review and fix the boxes on this image">
+                onClick={() => runAi('image', 'refine')}
+                title={engineInfo(engine.engine).supportsRefine ? 'Ask the AI to review and fix the boxes on this image'
+                  : REFINE_NEEDS_VLM}>
           Refine boxes with AI
         </button>
         <ActivityLog entries={activity.data ?? []} onSelectImage={openFromLog} />

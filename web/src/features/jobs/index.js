@@ -4,4 +4,4 @@ export { useEngineSettings } from './hooks/useEngineSettings';
 export { useEngineStatus, useJobSummary, useQueueJobs, useResumeWorker, useStopJobs } from './hooks/useJobs';
 export { applyJobMessage, applyWorkerMessage } from './lib/liveUpdates';
 export { noticeFor } from './lib/status';
-export { engineInfo } from './lib/engines';
+export { REFINE_NEEDS_VLM, engineInfo, engineOptions } from './lib/engines';

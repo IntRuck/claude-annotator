@@ -1,4 +1,4 @@
-import { act, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import EngineBar from './EngineBar';
@@ -99,6 +99,77 @@ describe('EngineBar', () => {
       act(() => vi.advanceTimersByTime(20000));
 
       expect(screen.getByText('Worker offline')).toBeInTheDocument();
+    });
+  });
+
+  describe('options per engine, like today', () => {
+    const CLAUDE = { engine: 'claude', model: 'sonnet', extra: '', grid: false };
+    const OLLAMA = { engine: 'ollama', model: 'qwen3-vl:4b', extra: '', grid: false };
+    const DINO = { engine: 'grounding_dino', model: 'IDEA-Research/grounding-dino-tiny', extra: '', threshold: 0.35 };
+
+    it('offers all five engines', () => {
+      renderBar();
+      const engines = screen.getByRole('combobox', { name: 'AI engine' });
+      expect([...engines.options].map((o) => o.textContent)).toEqual([
+        'Gemini (API key)', 'Claude (your plan)', 'Local VLM (Ollama)', 'Grounding DINO', 'YOLO-World / YOLOE']);
+    });
+
+    it('changing the engine asks for that engine', async () => {
+      const { onChange } = renderBar();
+      await userEvent.selectOptions(screen.getByRole('combobox', { name: 'AI engine' }), 'ollama');
+      expect(onChange).toHaveBeenLastCalledWith({ engine: 'ollama' });
+    });
+
+    it('Claude picks one of its three models from a list', async () => {
+      const { onChange } = renderBar({ settings: CLAUDE });
+      const model = screen.getByRole('combobox', { name: 'Claude model' });
+      expect([...model.options].map((o) => o.textContent)).toEqual(['Sonnet', 'Haiku', 'Opus']);
+      await userEvent.selectOptions(model, 'opus');
+      expect(onChange).toHaveBeenLastCalledWith({ model: 'opus' });
+    });
+
+    it('Claude and Ollama can draw a grid on the image the AI sees', async () => {
+      const { onChange } = renderBar({ settings: OLLAMA });
+      await userEvent.click(screen.getByRole('checkbox', { name: /grid/ }));
+      expect(onChange).toHaveBeenLastCalledWith({ grid: true });
+    });
+
+    it('Gemini has no grid switch', () => {
+      renderBar();
+      expect(screen.queryByRole('checkbox', { name: /grid/ })).not.toBeInTheDocument();
+    });
+
+    it('Ollama suggests the models pulled into it', () => {
+      renderBar({
+        settings: OLLAMA,
+        engineStatus: { workerOnline: true, lastSeenAt: new Date().toISOString(), paused: [],
+                        engines: { ollama: { ready: true, note: '', models: ['gemma3:4b', 'qwen3-vl:8b'] } } },
+      });
+      expect(screen.getByRole('combobox', { name: 'Ollama model' })).toHaveValue('qwen3-vl:4b');
+      const options = [...document.querySelectorAll('#ollama-models option')].map((o) => o.value);
+      expect(options).toEqual(['gemma3:4b', 'qwen3-vl:8b']);
+    });
+
+    it('a detector takes a minimum confidence instead of extra instructions', () => {
+      const { onChange } = renderBar({ settings: DINO });
+      const conf = screen.getByRole('spinbutton', { name: 'Minimum confidence' });
+      expect(conf).toHaveValue(0.35);
+      expect(screen.queryByRole('textbox', { name: 'Extra instructions for the AI' })).not.toBeInTheDocument();
+
+      fireEvent.change(conf, { target: { value: '0.5' } });
+
+      expect(onChange).toHaveBeenLastCalledWith({ threshold: 0.5 });
+    });
+
+    it('Grounding DINO comes in two sizes', () => {
+      renderBar({ settings: DINO });
+      const size = screen.getByRole('combobox', { name: 'Grounding DINO size' });
+      expect([...size.options].map((o) => o.textContent)).toEqual(['tiny', 'base (more VRAM)']);
+    });
+
+    it('a detector can not refine', () => {
+      renderBar({ settings: DINO });
+      expect(screen.getByRole('button', { name: 'Refine all' })).toBeDisabled();
     });
   });
 

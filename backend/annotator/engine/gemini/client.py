@@ -42,7 +42,8 @@ class GeminiEngine:
     name = "gemini"
     label = "Gemini"
     supports_refine = True
-    resize_input = True    # send a copy of at most 1568 px; Gemini has native box training, so no grid
+    resize_input = True    # send a copy of at most 1568 px
+    grid = False           # Gemini has native box training; a grid would only get in the way
 
     def __init__(self, model: str = DEFAULT_MODEL, *, api_key: str, base_url: str, timeout: float = 180,
                  transport: httpx.BaseTransport | None = None, sleep: Callable[[float], None] = time.sleep):

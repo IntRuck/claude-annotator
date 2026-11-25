@@ -21,7 +21,10 @@ from annotator.classes.repository import ClassRepository
 from annotator.classes.service import ClassService
 from annotator.config.settings import Settings, get_settings
 from annotator.db.session import libpq_dsn, open_session
+from annotator.engine.claude_cli.client import claude_path
+from annotator.engine.detectors.common import cuda_available, installed
 from annotator.engine.gemini.client import GeminiEngine
+from annotator.engine.ollama.client import OllamaEngine
 from annotator.engine.registry import make_engine
 from annotator.image.repository import ImageRepository
 from annotator.image.service import ImageService
@@ -36,7 +39,7 @@ from annotator.project.service import ProjectService
 from annotator.realtime.notify_listener import NotifyListener
 from annotator.storage.dependencies import get_storage
 from annotator.storage.storage_service import StorageService
-from annotator.worker_status.heartbeat import Heartbeat, engine_availability
+from annotator.worker_status.heartbeat import Heartbeat, Probes, cached_for, engine_availability
 from annotator.worker_status.repository import WorkerStatusRepository
 from annotator.worker_status.service import WorkerStatusService
 
@@ -90,7 +93,11 @@ def make_heartbeat(unit, worker_id: str, settings: Settings) -> Heartbeat:
             s.engine_status.stopped(worker_id)
 
     gemini = GeminiEngine(api_key=settings.gemini_api_key, base_url=settings.gemini_base_url)
-    return Heartbeat(beat, gone, availability=partial(engine_availability, settings, gemini.list_models))
+    probes = Probes(gemini_models=cached_for(600, gemini.list_models),     # Google is asked every 10 min at most
+                    ollama_models=OllamaEngine(url=settings.ollama_url).list_models,
+                    claude_path=partial(claude_path, settings.claude_bin),
+                    installed=installed, cuda=cuda_available)
+    return Heartbeat(beat, gone, availability=partial(engine_availability, settings, probes))
 
 
 def main() -> None:

@@ -8,8 +8,9 @@ from PIL import Image
 from sqlalchemy import text
 from sqlalchemy.orm import sessionmaker
 
+from annotator.config.settings import Settings
 from annotator.job.loop import JobLoop
-from annotator.worker import make_unit, wakes_worker
+from annotator.worker import make_heartbeat, make_unit, wakes_worker
 from tests.fakes import FakeStorage
 from tests.labeling.conftest import FakeEngine
 
@@ -40,6 +41,18 @@ class RecordingSession:
 
     def close(self):
         self.calls.append("close")
+
+
+def test_the_heartbeat_reports_every_engine_with_the_real_checks():
+    # No Gemini key (so Google isn't called) and nothing listening on the Ollama port.
+    settings = Settings(_env_file=None, gemini_api_key="", ollama_url="http://127.0.0.1:9", claude_bin="")
+    heartbeat = make_heartbeat(unit=None, worker_id="pc:1", settings=settings)
+
+    engines = heartbeat.availability()
+
+    assert list(engines) == ["gemini", "claude", "ollama", "grounding_dino", "yolo_world"]
+    assert engines["gemini"]["ready"] is False
+    assert engines["ollama"]["note"].startswith("Ollama isn't running at http://127.0.0.1:9.")
 
 
 def test_a_unit_of_work_commits_when_the_step_succeeds_and_rolls_back_when_it_fails():

@@ -43,9 +43,12 @@ def test_without_any_worker_engines_are_listed_but_not_ready(repo):
     assert (status.engines["gemini"].ready, status.engines["gemini"].models) == (False, [])
 
 
-def test_engines_the_api_does_not_know_are_left_out(repo):
+def test_engines_the_api_does_not_know_are_left_out_and_unreported_ones_are_not_ready(repo):
     repo.heartbeat("pc:1", {"gemini": GEMINI_READY, "robot": {"ready": True, "note": "", "models": []}})
-    assert list(service_at(repo).status().engines) == ["gemini"]
+    engines = service_at(repo).status().engines
+    assert "robot" not in engines
+    assert engines["gemini"].ready is True
+    assert engines["claude"].ready is False
 
 
 def test_pauses_are_listed_with_the_engine_label_and_reason(repo):

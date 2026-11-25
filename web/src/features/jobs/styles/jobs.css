@@ -2,6 +2,8 @@
 .engine-bar .lbl { font-size: 11px; font-weight: 700; color: var(--muted); letter-spacing: 0.04em; }
 .engine-bar .model { width: 165px; }
 .engine-bar .extra { width: 150px; }
+.engine-bar .chk { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: var(--muted); }
+.engine-bar .conf { width: 60px; }
 .engine-bar .ai-status { font-size: 12px; color: var(--muted); min-width: 90px; white-space: nowrap; }
 .engine-note { font-size: 12px; color: var(--muted); max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .engine-note.bad { color: #dc2626; font-weight: 600; }

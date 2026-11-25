@@ -30,9 +30,10 @@ class FakeEngine:
     name = "gemini"
     supports_refine = True
 
-    def __init__(self, script, resize_input=True):
+    def __init__(self, script, resize_input=True, grid=False):
         self.script = list(script)
         self.resize_input = resize_input
+        self.grid = grid
         self.calls = []
 
     def annotate(self, image, classes, prompts, descs, extra):

@@ -42,8 +42,9 @@ class LabelOutcome:
 
 
 def run_engine(task: LabelTask, make_engine: EngineFactory) -> LabelOutcome:
-    """Ask the engine for boxes. Annotate: VLMs get a shrunk copy, detectors the original. Refine (VLMs only):
-    a clean copy, the same copy with today's boxes drawn and numbered, and those boxes on the 0-1000 scale."""
+    """Ask the engine for boxes. Annotate: VLMs get a shrunk copy (with the 0-1000 grid when the engine reads one),
+    detectors the original. Refine (VLMs only, never a grid): a clean copy, the same copy with today's boxes drawn
+    and numbered, and those boxes on the 0-1000 scale."""
     engine = make_engine(task.job.engine, task.job.options)
     extra = task.job.options.get("extra", "")
     started = time.monotonic()
@@ -52,7 +53,7 @@ def run_engine(task: LabelTask, make_engine: EngineFactory) -> LabelOutcome:
                                        task.classes, task.prompts, task.descs, to_1000(task.current, task.classes),
                                        extra)
     else:
-        image = prepare_for_vlm(task.image) if engine.resize_input else task.image
+        image = prepare_for_vlm(task.image, grid=engine.grid) if engine.resize_input else task.image
         boxes, unknown = engine.annotate(image, task.classes, task.prompts, task.descs, extra)
     mapped = [{**b, "cls": task.indexes[b["cls"]]} for b in boxes if 0 <= b["cls"] < len(task.indexes)]
     return LabelOutcome(mapped, set(unknown), time.monotonic() - started, engine.name)

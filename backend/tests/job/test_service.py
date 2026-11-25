@@ -169,14 +169,17 @@ def test_label_all_does_not_take_the_refine_target(w):
     assert error_of(lambda: w.jobs.queue(1, JobCreate(target="auto"))) == (400, "UNKNOWN_TARGET")
 
 
-def test_an_engine_that_cannot_refine_says_so(w, monkeypatch):
-    from annotator.engine.registry import ENGINES, EngineInfo
-
-    monkeypatch.setitem(ENGINES, "detector", EngineInfo(label="Detector", defaults={"model": "x", "extra": ""},
-                                                        build=lambda o, s: None, supports_refine=False))
+@pytest.mark.parametrize("detector", ["grounding_dino", "yolo_world"])
+def test_a_detector_cannot_refine_and_says_so(w, detector):
     w.image("a.jpg", "auto")
-    assert error_of(lambda: w.jobs.queue(1, JobCreate(kind="refine", target="auto", engine="detector"))) == (
+    assert error_of(lambda: w.jobs.queue(1, JobCreate(kind="refine", target="auto", engine=detector))) == (
         400, "CANT_REFINE")
+
+
+def test_queueing_for_a_detector_logs_its_model(w):
+    w.image("a.jpg")
+    w.jobs.queue(1, JobCreate(target="unlabeled", engine="yolo_world", options={"model": "yoloe-11s-seg.pt"}))
+    assert w.activity_repo.messages()[-1] == "Queued 1 image(s) for YOLO-World (yoloe-11s-seg.pt)"
 
 
 # ---------- stop ----------

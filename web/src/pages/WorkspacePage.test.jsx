@@ -247,6 +247,18 @@ describe('WorkspacePage', () => {
       await waitFor(() => expect(queueJobs).toHaveBeenCalledWith(4, { kind: 'refine', target: 'image', imageId: 1, ...GEMINI }));
     });
 
+    it('a detector is sent its model and confidence, and can not refine', async () => {
+      renderPage();
+      await waitForImage(1);
+      await userEvent.selectOptions(screen.getByRole('combobox', { name: 'AI engine' }), 'yolo_world');
+
+      await userEvent.click(screen.getByRole('button', { name: 'Label all unlabeled' }));
+
+      await waitFor(() => expect(queueJobs).toHaveBeenCalledWith(4, {
+        target: 'unlabeled', engine: 'yolo_world', options: { model: 'yolov8s-worldv2.pt', threshold: 0.25 } }));
+      expect(screen.getByRole('button', { name: /Refine boxes with AI/ })).toBeDisabled();
+    });
+
     it('without classes the SKU manager opens instead, like today', async () => {
       listClasses.mockResolvedValue([]);
       renderPage();

@@ -73,6 +73,37 @@ def test_detectors_get_the_original_photo(w):
     assert engine.calls[0]["image"] == task.image
 
 
+def line_at_x100(data: bytes) -> int:
+    """Brightness where the grid's x = 100 line would be on a black 1000x800 photo."""
+    img = Image.open(io.BytesIO(data)).convert("RGB")
+    return max(sum(img.getpixel((x, y))) for x in range(99, 102) for y in range(420, 440))
+
+
+def test_an_engine_that_reads_a_grid_gets_one_drawn_on_its_copy(w):
+    w.upload("a.jpg", size=(1000, 800))
+    w.queue()
+    task = w.labeling.load(w.jobs.claim_next())
+    with_grid, without = FakeEngine([([], set())], grid=True), FakeEngine([([], set())])
+
+    run_engine(task, lambda name, options: with_grid)
+    run_engine(task, lambda name, options: without)
+
+    assert line_at_x100(with_grid.calls[0]["image"]) > 60
+    assert line_at_x100(without.calls[0]["image"]) == 0
+
+
+def test_refine_never_draws_the_grid(w):
+    image_id = w.upload("a.jpg", size=(1000, 800))
+    w.give_boxes(image_id, [JAR])
+    w.queue(target="image", image_id=image_id, kind="refine")
+    task = w.labeling.load(w.jobs.claim_next())
+    engine = FakeEngine([([], set())], grid=True)
+
+    run_engine(task, lambda name, options: engine)
+
+    assert line_at_x100(engine.calls[0]["clean"]) == 0
+
+
 def test_save_writes_ai_boxes_sets_auto_with_a_note_and_finishes_the_job(w):
     image_id, job = claimed(w)
     task = w.labeling.load(job)
