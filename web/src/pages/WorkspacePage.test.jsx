@@ -11,6 +11,7 @@ import { listImages, setFlag } from '@/features/images/api/imagesApi';
 import { getBoxes, saveBoxes } from '@/features/editor/api/labelsApi';
 import { getEngineStatus, getJobSummary, queueJobs, resumeWorker } from '@/features/jobs/api/jobsApi';
 import { listActivity } from '@/features/activity/api/activityApi';
+import { getHealth } from '@/features/health/api/healthApi';
 import WorkspacePage from './WorkspacePage';
 
 vi.mock('react-konva', () => import('@/test/konvaStub'));
@@ -28,6 +29,7 @@ vi.mock('@/features/jobs/api/jobsApi', () => ({
   getJobSummary: vi.fn(), queueJobs: vi.fn(), stopJobs: vi.fn(), getEngineStatus: vi.fn(), resumeWorker: vi.fn(),
 }));
 vi.mock('@/features/activity/api/activityApi', () => ({ listActivity: vi.fn() }));
+vi.mock('@/features/health/api/healthApi', () => ({ getHealth: vi.fn() }));
 
 const image = (id, fileName, status = 'unlabeled', extra = {}) => ({
   id, projectId: 4, fileName, status, width: 640, height: 480, boxCount: 0, flagged: false, flagReason: '', flagNote: '',
@@ -35,6 +37,15 @@ const image = (id, fileName, status = 'unlabeled', extra = {}) => ({
 });
 const COUNTS = { all: 2, unlabeled: 1, auto: 1, edited: 0, reviewed: 0, flagged: 0, error: 0 };
 const BOX = { cls: 0, x1: 0.1, y1: 0.1, x2: 0.5, y2: 0.5, source: 'ai', conf: 0.9 };
+const TINY = 'Tiny boxes (< 0.5% width or height)';
+const HEALTH = {
+  summary: { images: 2, labeled: 1, boxes: 1, avgBoxesPerImage: 1, classes: 2, classesWithData: 1, imbalanceRatio: 1,
+             status: { unlabeled: 1, auto: 1 } },
+  classes: [{ index: 0, name: 'can', boxes: 1, images: 1, avgAreaPct: 16, warn: 'low (< 100)', imageIds: [2] },
+            { index: 1, name: 'jar', boxes: 0, images: 0, avgAreaPct: 0, warn: 'no boxes', imageIds: [] }],
+  sizes: [], heatmap: [[0]], lowCount: 100,
+  issues: [{ key: 'tiny', label: TINY, count: 1, imageIds: [2] }],
+};
 
 function renderPage() {
   return renderWithProviders(<WorkspacePage />, { route: '/projects/4', path: '/projects/:projectId' });
@@ -66,6 +77,7 @@ describe('WorkspacePage', () => {
     listActivity.mockReset().mockResolvedValue([]);
     getEngineStatus.mockReset().mockResolvedValue({ workerOnline: true, lastSeenAt: new Date().toISOString(), engines: {}, paused: [] });
     resumeWorker.mockReset().mockResolvedValue({ resumed: ['gemini'] });
+    getHealth.mockReset().mockResolvedValue(HEALTH);
     localStorage.clear();
   });
 
@@ -328,6 +340,50 @@ describe('WorkspacePage', () => {
         }));
         expect(await screen.findByText('b.jpg: 2 box(es) in 1.2s (via gemini)')).toBeInTheDocument();
       });
+    });
+  });
+
+  describe('health check', () => {
+    it('opens the report from the top bar', async () => {
+      renderPage();
+      await userEvent.click(await screen.findByRole('button', { name: 'Health check' }));
+      const dialog = screen.getByRole('dialog', { name: 'Dataset health' });
+      expect(await within(dialog).findByText('images (1 labeled)')).toBeInTheDocument();
+      expect(getHealth).toHaveBeenCalledWith(4, 100);
+    });
+
+    it('clicking an issue shows just its images as a filter and opens the first', async () => {
+      renderPage();
+      await waitForImage(1);
+      await userEvent.click(screen.getByRole('button', { name: 'Health check' }));
+      await userEvent.click(await screen.findByRole('button', { name: TINY }));
+      expect(screen.queryByRole('dialog', { name: 'Dataset health' })).not.toBeInTheDocument();
+      const select = screen.getByRole('combobox', { name: 'Filter images' });
+      expect(select).toHaveValue('custom');
+      expect(within(select).getByRole('option', { name: `${TINY} (1)` })).toBeInTheDocument();
+      await waitForImage(2);
+      expect(screen.queryByRole('button', { name: /a\.jpg/ })).not.toBeInTheDocument();
+    });
+
+    it('clicking a class shows the images that have it', async () => {
+      renderPage();
+      await waitForImage(1);
+      await userEvent.click(screen.getByRole('button', { name: 'Health check' }));
+      const dialog = screen.getByRole('dialog', { name: 'Dataset health' });
+      await userEvent.click(await within(dialog).findByRole('button', { name: 'can' }));
+      expect(within(screen.getByRole('combobox', { name: 'Filter images' })).getByRole('option', { name: 'Class: can (1)' }))
+        .toBeInTheDocument();
+      await waitForImage(2);
+    });
+
+    it('saves unsaved edits before opening it', async () => {
+      renderPage();
+      await waitForImage(1);
+      await userEvent.click(screen.getByRole('tab', { name: /^Boxes/ }));
+      await userEvent.click(screen.getByRole('button', { name: 'Delete box' }));
+      await userEvent.click(screen.getByRole('button', { name: 'Health check' }));
+      await waitFor(() => expect(saveBoxes).toHaveBeenCalledWith(1, { boxes: [], status: 'edited', expectedUpdatedAt: 'T1' }));
+      expect(await screen.findByRole('dialog', { name: 'Dataset health' })).toBeInTheDocument();
     });
   });
 });

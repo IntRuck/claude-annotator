@@ -45,5 +45,13 @@ class LabelService:
         updated = self.images.update_state(image_id, status=body.status)
         return SaveResult(image=updated, boxes=self._boxes(image_id))
 
+    def boxes_by_image(self, project_id: int) -> dict[int, list[dict]]:
+        """All of the project's boxes as plain dicts (cls, x1..y2, source, conf), grouped by image id. Images
+        without boxes are left out."""
+        grouped: dict[int, list[dict]] = {}
+        for row in self.repo.list_for_project(project_id):
+            grouped.setdefault(row.image_id, []).append(BoxOut.model_validate(row).model_dump())
+        return grouped
+
     def _boxes(self, image_id: int) -> list[BoxOut]:
         return [BoxOut.model_validate(b) for b in self.repo.list_for_image(image_id)]

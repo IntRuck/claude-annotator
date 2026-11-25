@@ -71,3 +71,18 @@ def test_deleting_an_image_deletes_its_boxes(db_session, ids):
     db_session.delete(db_session.get(Image, image_id))
     db_session.flush()
     assert repo.list_for_image(image_id) == []
+
+
+def test_list_for_project_gives_only_that_projects_boxes_by_image_then_order(db_session, ids):
+    pid, first = ids
+    images, repo = ImageRepository(db_session), LabelRepository(db_session)
+    second = images.add(pid, file_name="b.jpg", stem="b", storage_path="p2", thumb_path="t2", width=100, height=50).id
+    other_pid = ProjectRepository(db_session).create("Other").id
+    ClassRepository(db_session).add(other_pid, "cup", "", "")
+    elsewhere = images.add(other_pid, file_name="c.jpg", stem="c", storage_path="p3", thumb_path="t3",
+                           width=100, height=50).id
+    repo.replace(pid, second, [box(1)], source="ai")
+    repo.replace(pid, first, [box(0), box(1)], source="ai")
+    repo.replace(other_pid, elsewhere, [box(0)], source="ai")
+    rows = repo.list_for_project(pid)
+    assert [(b.image_id, b.class_index) for b in rows] == [(first, 0), (first, 1), (second, 1)]

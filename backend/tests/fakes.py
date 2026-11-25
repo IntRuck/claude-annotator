@@ -4,6 +4,7 @@ Each fake follows the same contract as the real repository it replaces; the real
 `db` tests against Postgres.
 """
 from datetime import datetime, timezone
+from types import SimpleNamespace
 
 from annotator.activity.models import ActivityEntry
 from annotator.classes.models import ProjectClass
@@ -148,6 +149,12 @@ class FakeLabelRepository:
 
     def list_for_image(self, image_id: int) -> list[dict]:
         return list(self.boxes.get(image_id, []))
+
+    def list_for_project(self, project_id: int) -> list[SimpleNamespace]:
+        """Rows shaped like Box (image_id, class_index, ...), by image and then in order."""
+        return [SimpleNamespace(image_id=image_id, class_index=b["cls"], **{k: v for k, v in b.items() if k != "cls"})
+                for image_id in sorted(self.boxes) if self.images.get(image_id).project_id == project_id
+                for b in self.boxes[image_id]]
 
     def replace(self, project_id: int, image_id: int, boxes: list[dict], source: str):
         self.boxes[image_id] = [{**b, "source": b.get("source") or source} for b in boxes]

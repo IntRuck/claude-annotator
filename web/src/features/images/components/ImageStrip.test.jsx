@@ -72,4 +72,18 @@ describe('ImageStrip', () => {
     render(<ImageStrip items={[]} counts={counts} filter="edited" currentId={null} onSelect={() => {}} onFilterChange={() => {}} />);
     expect(screen.getByText('No images match this filter.')).toBeInTheDocument();
   });
+
+  it('offers a picked set of images (from the health check) as its own filter', async () => {
+    const { onFilterChange } = renderStrip({ custom: { label: 'Tiny boxes', count: 2 } });
+    const select = screen.getByRole('combobox', { name: 'Filter images' });
+    expect(within(select).getByRole('option', { name: 'Tiny boxes (2)' })).toHaveValue('custom');
+    await userEvent.selectOptions(select, 'custom');
+    expect(onFilterChange).toHaveBeenCalledWith('custom');
+  });
+
+  it('has no picked-set filter until one is picked', () => {
+    renderStrip();
+    expect(screen.queryByRole('option', { name: /\(2\)/ })).not.toBeInTheDocument();
+    expect(screen.getAllByRole('option')).toHaveLength(7);
+  });
 });

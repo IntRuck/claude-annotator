@@ -8,5 +8,6 @@ export const queryKeys = {
   boxes: (imageId) => ['images', imageId, 'boxes'],
   jobs: (projectId) => ['projects', projectId, 'jobs'],
   activity: (projectId) => ['projects', projectId, 'activity'],
+  health: (projectId, low) => ['projects', projectId, 'health', low],
   engines: () => ['engines'],
 };

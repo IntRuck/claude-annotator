@@ -11,6 +11,11 @@ class LabelRepository:
     def list_for_image(self, image_id: int) -> list[Box]:
         return list(self.session.scalars(select(Box).where(Box.image_id == image_id).order_by(Box.id)))
 
+    def list_for_project(self, project_id: int) -> list[Box]:
+        """Every box of the project, by image and then in each image's order."""
+        stmt = select(Box).where(Box.project_id == project_id).order_by(Box.image_id, Box.id)
+        return list(self.session.scalars(stmt))
+
     def replace(self, project_id: int, image_id: int, boxes: list[dict], source: str) -> list[Box]:
         """Swap the image's whole box set. Boxes are dicts with cls, x1, y1, x2, y2 and optional conf and source
         (`source` is used for boxes that don't say)."""

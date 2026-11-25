@@ -3,7 +3,9 @@ import { Link, useParams } from 'react-router-dom';
 import { EmptyState, ErrorBanner, LoadingState } from '@/components/ui';
 import { useProject } from '@/features/projects';
 import { ClassList, SkuManager, applyClassMessage, useClasses } from '@/features/classes';
-import { ImageStrip, UploadImages, applyImageMessage, fileUrl, stepFrom, useImages, useSetFlag } from '@/features/images';
+import {
+  CUSTOM, ImageStrip, UploadImages, applyImageMessage, fileUrl, stepFrom, useImages, useSetFlag,
+} from '@/features/images';
 import { ImportDataset } from '@/features/importer';
 import { BoxPanel, Editor, ReviewPanel, useEditor } from '@/features/editor';
 import {
@@ -11,6 +13,7 @@ import {
   noticeFor, useEngineSettings, useEngineStatus, useJobSummary, useQueueJobs, useResumeWorker, useStopJobs,
 } from '@/features/jobs';
 import { ActivityLog, applyActivityMessage, useActivity } from '@/features/activity';
+import { HealthDialog } from '@/features/health';
 import { useLiveUpdates } from '@/lib/realtime/useLiveUpdates';
 import './pages.css';
 
@@ -30,7 +33,8 @@ export default function WorkspacePage() {
   const project = useProject(projectId);
   const classes = useClasses(projectId);
   const [filter, setFilter] = useState('all');
-  const images = useImages(projectId, filter);
+  const [picked, setPicked] = useState(null); // { label, ids }: images picked in the health check
+  const images = useImages(projectId, filter, picked?.ids);
   const live = useLiveUpdates(projectId, LIVE_HANDLERS);
   const flag = useSetFlag(projectId);
   const [engine, setEngine] = useEngineSettings();
@@ -43,6 +47,7 @@ export default function WorkspacePage() {
   const [aiNotice, setAiNotice] = useState('');
   const [skuOpen, setSkuOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  const [healthOpen, setHealthOpen] = useState(false);
   const [introDismissed, setIntroDismissed] = useState(false);
   const [currentClass, setCurrentClass] = useState(0);
   const [chosenImageId, setChosenImageId] = useState(null);
@@ -59,7 +64,7 @@ export default function WorkspacePage() {
   // A project with no classes opens the SKU manager once (like today), unless you're importing a dataset.
   const noClassesYet = classes.isSuccess && classList.length === 0;
   const showIntro = noClassesYet && !introDismissed && !importOpen;
-  const dialogOpen = skuOpen || importOpen || showIntro;
+  const dialogOpen = skuOpen || importOpen || healthOpen || showIntro;
 
   /** Unsaved changes are saved as "edited" before moving on (a conflict keeps you on the image). */
   const goTo = useCallback(async (id) => {
@@ -121,6 +126,16 @@ export default function WorkspacePage() {
     setChosenImageId(id);
   };
 
+  /** A health-check class or issue: show just its images as a filter, starting with the first. */
+  const showPicked = (label, ids) => {
+    setPicked({ label, ids });
+    setFilter(CUSTOM);
+    setHealthOpen(false);
+    setHidden(new Set());
+    setSolo(false);
+    setChosenImageId(ids[0] ?? null);
+  };
+
   const setImageFlag = (flagged, reason, note) => flag.mutate({ imageId: current.id, flagged, reason, note });
 
   const pickClass = useCallback((index) => {
@@ -143,6 +158,9 @@ export default function WorkspacePage() {
                    onStop={() => stopJobs.mutate()} />
         <PausedBanner paused={engineStatus.data?.paused} busy={resume.isPending} onResume={() => resume.mutate()} />
         <span className={`live-status ${live}`} title={LIVE[live][1]}>{LIVE[live][0]}</span>
+        <button type="button" onClick={() => openDialog(setHealthOpen)} title="Dataset report: class counts, issues">
+          Health check
+        </button>
         <button type="button" onClick={() => openDialog(setImportOpen)}>Import dataset</button>
         <button type="button" onClick={() => openDialog(setSkuOpen)}>SKUs</button>
       </header>
@@ -200,10 +218,12 @@ export default function WorkspacePage() {
         )}
         <ErrorBanner error={images.error || flag.error} />
         <ImageStrip items={items} counts={images.data?.counts} filter={filter} currentId={current?.id ?? null}
+                    custom={picked && { label: picked.label, count: picked.ids.length }}
                     onSelect={goTo} onFilterChange={async (f) => { await editor.saveIfDirty().catch(() => {}); setFilter(f); }} />
       </aside>
 
       {importOpen && <ImportDataset projectId={projectId} onClose={() => setImportOpen(false)} />}
+      {healthOpen && <HealthDialog projectId={projectId} onClose={() => setHealthOpen(false)} onPickImages={showPicked} />}
       {(skuOpen || showIntro) && (
         <SkuManager projectId={projectId} intro={noClassesYet}
                     onClose={() => { setSkuOpen(false); setIntroDismissed(true); }} />

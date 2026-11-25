@@ -1,6 +1,6 @@
 import { EmptyState } from '@/components/ui';
 import { thumbUrl } from '../api/imagesApi';
-import { FILTERS } from '../lib/filters';
+import { CUSTOM, FILTERS } from '../lib/filters';
 import { positionOf, stepFrom } from '../lib/navigation';
 import '../styles/images.css';
 
@@ -11,8 +11,9 @@ function tooltip(image) {
   return [image.fileName, image.note || image.status, flag].filter(Boolean).join('\n');
 }
 
-/** Right panel: filter, position counter and the thumbnail list. */
-export default function ImageStrip({ items, counts, filter, currentId, onSelect, onFilterChange }) {
+/** Right panel: filter, position counter and the thumbnail list. `custom` ({ label, count }) adds a picked set
+ * of images (from the health check) as one more filter. */
+export default function ImageStrip({ items, counts, filter, currentId, onSelect, onFilterChange, custom = null }) {
   const position = positionOf(items, currentId);
   const step = (delta) => {
     const id = stepFrom(items, currentId, delta);
@@ -30,6 +31,7 @@ export default function ImageStrip({ items, counts, filter, currentId, onSelect,
         {FILTERS.map((f) => (
           <option key={f.value} value={f.value}>{`${f.label} (${counts?.[f.value] ?? 0})`}</option>
         ))}
+        {custom && <option value={CUSTOM}>{`${custom.label} (${custom.count})`}</option>}
       </select>
       <div className="strip-thumbs">
         {items.length === 0 && (

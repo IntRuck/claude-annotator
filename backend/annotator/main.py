@@ -7,6 +7,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from annotator.activity.router import router as activity_router
+from annotator.health.router import router as health_router
 from annotator.classes.router import router as classes_router
 from annotator.common.problem import install_problem_handlers
 from annotator.config.settings import Settings, get_settings
@@ -90,6 +91,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(label_router)
     app.include_router(job_router)
     app.include_router(activity_router)
+    app.include_router(health_router)
     app.include_router(worker_status_router)
     app.include_router(realtime_router)
     return app

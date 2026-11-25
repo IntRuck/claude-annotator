@@ -114,3 +114,19 @@ def test_saving_a_missing_image_is_404(world):
     service, _, _ = world
     assert error_of(lambda: service.save(9, SaveBoxes(boxes=[], status="edited",
                                                       expected_updated_at=datetime.now(timezone.utc)))) == (404, "IMAGE_NOT_FOUND")
+
+
+# ---------- whole project (health report) ----------
+def test_boxes_by_image_groups_the_projects_boxes(world):
+    service, labels, images = world
+    images.add(1, file_name="b.jpg", stem="b", storage_path="p", thumb_path="t", width=100, height=50)
+    images.add(1, file_name="c.jpg", stem="c", storage_path="p", thumb_path="t", width=100, height=50)
+    images.add(2, file_name="d.jpg", stem="d", storage_path="p", thumb_path="t", width=100, height=50)
+    service.replace_boxes(1, 1, [{"cls": 0, "x1": 0.1, "y1": 0.1, "x2": 0.5, "y2": 0.5}], source="ai")
+    service.replace_boxes(1, 2, [{"cls": 1, "x1": 0.2, "y1": 0.2, "x2": 0.4, "y2": 0.4, "conf": 0.9},
+                                 {"cls": 0, "x1": 0.5, "y1": 0.5, "x2": 0.6, "y2": 0.6}], source="ai")
+    service.replace_boxes(2, 4, [{"cls": 0, "x1": 0.1, "y1": 0.1, "x2": 0.5, "y2": 0.5}], source="ai")
+    grouped = service.boxes_by_image(1)
+    assert list(grouped) == [1, 2]  # images without boxes (c.jpg) and other projects are left out
+    assert [b["cls"] for b in grouped[2]] == [1, 0]
+    assert grouped[2][0] == pytest.approx({"cls": 1, "x1": 0.2, "y1": 0.2, "x2": 0.4, "y2": 0.4, "source": "ai", "conf": 0.9})
