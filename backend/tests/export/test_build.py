@@ -1,7 +1,7 @@
 """YOLO zip and COCO JSON, moved from today's app.export_yolo_zip / export_coco
-(see tests/legacy/test_health_export.py).
+(see the old app's tests).
 
-Same small dataset as the legacy test, as v2 rows (classes can=0, bottle=1, images 100x50). Today's c.jpg had a box
+Same small dataset as the old app's test, as v2 rows (classes can=0, bottle=1, images 100x50). Today's c.jpg had a box
 with class 5; v2's database refuses that, so c.jpg's box is a can here.
   1 a.jpg  auto: two identical can boxes + one bottle box
   2 b.jpg  auto: no boxes (background)

@@ -1,5 +1,6 @@
+import { useEffect, useEffectEvent } from 'react';
 import { useNow } from '../hooks/useNow';
-import { ENGINES, REFINE_NEEDS_VLM, engineInfo } from '../lib/engines';
+import { ENGINES, REFINE_NEEDS_VLM, engineInfo, ollamaModelCheck } from '../lib/engines';
 import { statusText } from '../lib/status';
 import { isWorkerOnline } from '../lib/workerStatus';
 import '../styles/jobs.css';
@@ -44,6 +45,15 @@ export default function EngineBar({
   const info = engineInfo(settings.engine);
   const reported = engineStatus?.engines?.[settings.engine];
   const waiting = summary?.queued ?? 0;
+  const check = ollamaModelCheck(settings.engine, settings.model, reported?.models);
+  const note = check.warning || reported?.note;
+
+  // Like today: checked when the worker reports Ollama's models or you switch engine, not while you type a name.
+  const installedKey = (reported?.models ?? []).join(',');
+  const switchIfNotPulled = useEffectEvent(() => {
+    if (check.switchTo) onChange({ model: check.switchTo });
+  });
+  useEffect(() => { switchIfNotPulled(); }, [installedKey, settings.engine]);
 
   return (
     <div className="engine-bar" title="Which AI labels the images">
@@ -71,8 +81,8 @@ export default function EngineBar({
         <input aria-label="Extra instructions for the AI" className="extra" placeholder="Extra instructions"
                value={settings.extra} onChange={(e) => onChange({ extra: e.target.value })} />
       )}
-      {reported?.note && (
-        <span className={`engine-note${reported.ready ? '' : ' bad'}`} title={reported.note}>{reported.note}</span>
+      {note && (
+        <span className={`engine-note${reported.ready && !check.warning ? '' : ' bad'}`} title={note}>{note}</span>
       )}
       <button type="button" className="primary" disabled={busy} onClick={onRunAll}
               title="Label every image that has no labels yet (and retry the ones that failed)">

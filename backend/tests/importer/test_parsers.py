@@ -1,5 +1,5 @@
 """File readers for importing an existing dataset. The classes.txt, data.yaml and YOLO cases are the same as
-today's app (tests/legacy/test_project_storage.py) so the moved code keeps its behaviour."""
+today's app (the old app's tests) so the moved code keeps its behaviour."""
 import json
 
 import pytest

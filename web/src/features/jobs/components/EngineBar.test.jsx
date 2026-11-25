@@ -178,4 +178,40 @@ describe('EngineBar', () => {
     expect(screen.getByRole('button', { name: 'Label all unlabeled' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Refine all' })).toBeDisabled();
   });
+
+  describe('Ollama model', () => {
+    const OLLAMA = { engine: 'ollama', model: 'qwen3-vl:4b', extra: '', grid: false };
+    const status = (models) => ({ workerOnline: true, lastSeenAt: new Date().toISOString(), paused: [],
+      engines: { ollama: { ready: true, note: '', models } } });
+
+    it("switches to a pulled vision model when the chosen one isn't pulled", () => {
+      const { onChange } = renderBar({ settings: OLLAMA, engineStatus: status(['llama3.2:latest', 'llava:7b']) });
+      expect(onChange).toHaveBeenCalledWith({ model: 'llava:7b' });
+    });
+
+    it('warns when none of the pulled models can see images', () => {
+      const { onChange } = renderBar({ settings: OLLAMA, engineStatus: status(['llama3.2:latest', 'gemma3:270m']) });
+      expect(screen.getByText(/qwen3-vl:4b isn't pulled in Ollama/)).toHaveClass('engine-note', 'bad');
+      expect(onChange).not.toHaveBeenCalled();
+    });
+
+    it("doesn't fight you while you type a model name: it only checks when the model list or engine changes", () => {
+      const handlers = { onChange: vi.fn(), onRunAll: vi.fn(), onRefineAll: vi.fn(), onStop: vi.fn() };
+      const models = status(['llava:7b']);
+      const { rerender } = render(<EngineBar settings={{ ...OLLAMA, model: 'llava:7b' }} summary={IDLE} notice="" busy={false}
+                                             engineStatus={models} {...handlers} />);
+      rerender(<EngineBar settings={{ ...OLLAMA, model: 'q' }} summary={IDLE} notice="" busy={false}
+                          engineStatus={models} {...handlers} />);
+      expect(handlers.onChange).not.toHaveBeenCalled();
+      rerender(<EngineBar settings={{ ...OLLAMA, model: 'q' }} summary={IDLE} notice="" busy={false}
+                          engineStatus={status(['llava:7b', 'moondream:latest'])} {...handlers} />);
+      expect(handlers.onChange).toHaveBeenCalledWith({ model: 'llava:7b' });
+    });
+
+    it('leaves a pulled model alone', () => {
+      const { onChange } = renderBar({ settings: OLLAMA, engineStatus: status(['qwen3-vl:4b']) });
+      expect(onChange).not.toHaveBeenCalled();
+      expect(screen.queryByText(/isn't pulled/)).not.toBeInTheDocument();
+    });
+  });
 });

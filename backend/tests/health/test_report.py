@@ -1,6 +1,6 @@
-"""The health report, moved from today's app.health_report (see tests/legacy/test_health_export.py).
+"""The health report, moved from today's app.health_report (see the old app's tests).
 
-Same small dataset as the legacy test, as v2 rows (classes can=0, bottle=1). Today's c.jpg had a box with class 5;
+Same small dataset as the old app's test, as v2 rows (classes can=0, bottle=1). Today's c.jpg had a box with class 5;
 v2's database refuses a box whose class doesn't exist, so c.jpg's tiny box is a can here and the "class ID not in
 class list" issue is gone.
   1 a.jpg  auto: two identical can boxes (duplicate) + one bottle box

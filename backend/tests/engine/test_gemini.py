@@ -1,4 +1,4 @@
-"""Gemini engine, moved from backends.py. Same cases as tests/legacy/test_engines.py, with httpx's MockTransport
+"""Gemini engine, moved from backends.py. Same cases as the old app's tests, with httpx's MockTransport
 instead of patching urllib, and an injected sleep."""
 import io
 import json

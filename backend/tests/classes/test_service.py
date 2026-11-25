@@ -1,4 +1,4 @@
-"""SKU / class rules. Same behaviour as today's Project.add_class/update_class (see tests/legacy),
+"""SKU / class rules. Same behaviour as today's Project.add_class/update_class (see the old app's tests),
 except that a taken or blank name is now an error the UI can show instead of being silently ignored."""
 import pytest
 

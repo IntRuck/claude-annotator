@@ -1,4 +1,4 @@
-"""Moved from backends.py: geometry, VLM prompts, reply parsing. Same cases as tests/legacy/test_vlm_shared.py."""
+"""Moved from backends.py: geometry, VLM prompts, reply parsing. Same cases as the old app's tests."""
 import json
 
 import pytest

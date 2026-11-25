@@ -1,4 +1,4 @@
-"""Ollama engine (a local VLM), moved from backends.py. Same cases as tests/legacy/test_engines.py, with httpx's
+"""Ollama engine (a local VLM), moved from backends.py. Same cases as the old app's tests, with httpx's
 MockTransport instead of patching urllib; images arrive as bytes."""
 import base64
 import io

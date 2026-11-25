@@ -46,7 +46,6 @@ Mirror the package under `tests/` (e.g. `annotator/label/service.py` → `tests/
 
 .venv/Scripts/python -m pytest                  # unit + router tests
 .venv/Scripts/python -m pytest -m db            # repository tests (Docker: testcontainers + Flyway)
-.venv/Scripts/python -m pytest tests/legacy     # characterisation tests of today's app.py/backends.py
 ```
 
 Setup: `python -m venv .venv` then `.venv/Scripts/python -m pip install -e ".[dev]"` (add `[detectors]` for Grounding DINO / YOLO-World).

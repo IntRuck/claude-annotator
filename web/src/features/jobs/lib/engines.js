@@ -67,3 +67,16 @@ export function engineOptions(settings) {
   if (info.threshold !== undefined) options.threshold = settings.threshold ?? info.threshold;
   return options;
 }
+
+// Ollama models that can see images. gemma3 can, except its text-only 270m and 1b sizes.
+const VISION_MODEL = /vl|llava|minicpm|moondream|gemma3(?!:(270m|1b)\b)/i;
+
+/** Today's page switched Ollama to a pulled vision model when the chosen one wasn't pulled. Returns
+ * `{ switchTo }` for that, `{ warning }` when no pulled model can see images, else `{}` (also for other engines and
+ * before the worker has listed Ollama's models). */
+export function ollamaModelCheck(engine, model, installed) {
+  if (engine !== 'ollama' || !installed?.length || installed.includes(model)) return {};
+  const vision = installed.find((m) => VISION_MODEL.test(m));
+  if (vision) return { switchTo: vision };
+  return { warning: `${model} isn't pulled in Ollama, and none of its models can see images. Run: ollama pull ${model}` };
+}

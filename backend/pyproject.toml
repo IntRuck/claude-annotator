@@ -21,8 +21,6 @@ dev = [
     "pytest>=8.3",
     "httpx2>=2.16",  # Starlette's TestClient uses it (plain httpx is deprecated there)
     "testcontainers[postgres]>=4.8",
-    # Only for tests/legacy, which import today's app.py (Flask). Removed with the old files.
-    "flask>=3.0",
 ]
 
 [build-system]

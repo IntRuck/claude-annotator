@@ -1,14 +1,10 @@
-# Annotation outputs and datasets (today's app, run from the repo root).
-# Anchored to the root so v2 code folders like web/src/features/images/ aren't ignored.
+# Datasets and exports you keep in the repo folder (never committed).
+# Anchored to the root so code folders like web/src/features/images/ aren't ignored.
 /labels/
-/_claude_tmp/
 /images/
 *.zip
 *_coco.json
-
-# Local data (your own class list and recent datasets)
 classes.txt
-recent.json
 
 # Python
 __pycache__/
@@ -34,5 +30,5 @@ supabase/.branches/
 Thumbs.db
 .vscode/
 
-
+# Local copy of the plan
 docs/

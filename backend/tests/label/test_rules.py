@@ -1,4 +1,4 @@
-"""Box save rules: same as today's write_boxes (tests/legacy/test_project_storage.py)."""
+"""Box save rules: same as today's write_boxes (the old app's tests)."""
 import pytest
 
 from annotator.label.rules import clean_boxes

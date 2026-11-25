@@ -1,4 +1,4 @@
-"""Claude CLI engine, moved from backends.py. Same cases as tests/legacy/test_engines.py; a fake process runner stands
+"""Claude CLI engine, moved from backends.py. Same cases as the old app's tests; a fake process runner stands
 in for subprocess.run, and images arrive as bytes, written to a temporary folder Claude may read."""
 import io
 import json
