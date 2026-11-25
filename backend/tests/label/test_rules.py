@@ -24,3 +24,10 @@ def test_box_exactly_0_001_wide_is_dropped_like_today():
 
 def test_extra_fields_like_confidence_are_kept():
     assert clean_boxes([{"cls": 0, "x1": 0.1, "y1": 0.1, "x2": 0.5, "y2": 0.5, "conf": 0.9}])[0]["conf"] == 0.9
+
+
+def test_an_image_is_labelled_once_saved_by_the_ai_an_import_or_a_person_or_when_it_has_boxes():
+    from annotator.label.rules import is_labelled
+    assert [is_labelled(s, 0) for s in ("auto", "edited", "reviewed")] == [True, True, True]
+    assert [is_labelled(s, 0) for s in ("unlabeled", "error")] == [False, False]
+    assert is_labelled("unlabeled", 2) and is_labelled("error", 1)

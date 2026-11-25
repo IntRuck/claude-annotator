@@ -9,5 +9,7 @@ export const queryKeys = {
   jobs: (projectId) => ['projects', projectId, 'jobs'],
   activity: (projectId) => ['projects', projectId, 'activity'],
   health: (projectId, low) => ['projects', projectId, 'health', low],
+  exportSummary: (projectId, { onlyReviewed, skipFlagged }) =>
+    ['projects', projectId, 'exports', { onlyReviewed, skipFlagged }],
   engines: () => ['engines'],
 };

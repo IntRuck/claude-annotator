@@ -14,6 +14,7 @@ import {
 } from '@/features/jobs';
 import { ActivityLog, applyActivityMessage, useActivity } from '@/features/activity';
 import { HealthDialog } from '@/features/health';
+import { ExportDialog } from '@/features/export';
 import { useLiveUpdates } from '@/lib/realtime/useLiveUpdates';
 import './pages.css';
 
@@ -48,6 +49,7 @@ export default function WorkspacePage() {
   const [skuOpen, setSkuOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [healthOpen, setHealthOpen] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
   const [introDismissed, setIntroDismissed] = useState(false);
   const [currentClass, setCurrentClass] = useState(0);
   const [chosenImageId, setChosenImageId] = useState(null);
@@ -64,7 +66,7 @@ export default function WorkspacePage() {
   // A project with no classes opens the SKU manager once (like today), unless you're importing a dataset.
   const noClassesYet = classes.isSuccess && classList.length === 0;
   const showIntro = noClassesYet && !introDismissed && !importOpen;
-  const dialogOpen = skuOpen || importOpen || healthOpen || showIntro;
+  const dialogOpen = skuOpen || importOpen || healthOpen || exportOpen || showIntro;
 
   /** Unsaved changes are saved as "edited" before moving on (a conflict keeps you on the image). */
   const goTo = useCallback(async (id) => {
@@ -161,6 +163,9 @@ export default function WorkspacePage() {
         <button type="button" onClick={() => openDialog(setHealthOpen)} title="Dataset report: class counts, issues">
           Health check
         </button>
+        <button type="button" onClick={() => openDialog(setExportOpen)} title="Download the labels as YOLO or COCO">
+          Export
+        </button>
         <button type="button" onClick={() => openDialog(setImportOpen)}>Import dataset</button>
         <button type="button" onClick={() => openDialog(setSkuOpen)}>SKUs</button>
       </header>
@@ -223,6 +228,7 @@ export default function WorkspacePage() {
       </aside>
 
       {importOpen && <ImportDataset projectId={projectId} onClose={() => setImportOpen(false)} />}
+      {exportOpen && <ExportDialog projectId={projectId} onClose={() => setExportOpen(false)} />}
       {healthOpen && <HealthDialog projectId={projectId} onClose={() => setHealthOpen(false)} onPickImages={showPicked} />}
       {(skuOpen || showIntro) && (
         <SkuManager projectId={projectId} intro={noClassesYet}

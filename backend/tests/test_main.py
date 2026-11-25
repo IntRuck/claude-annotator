@@ -121,7 +121,7 @@ def test_startup_creates_the_storage_buckets():
     app, storage, _ = app_with_fakes()
     with TestClient(app):
         pass
-    assert storage.buckets == ["images", "exports"]
+    assert storage.buckets == ["images"]  # exports download directly, nothing is stored
 
 
 def test_startup_still_works_when_storage_is_down():

@@ -8,7 +8,6 @@ from urllib.parse import quote
 import httpx
 
 IMAGES_BUCKET = "images"
-EXPORTS_BUCKET = "exports"
 
 
 class StorageError(Exception):

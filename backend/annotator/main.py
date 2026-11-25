@@ -7,6 +7,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from annotator.activity.router import router as activity_router
+from annotator.export.router import router as export_router
 from annotator.health.router import router as health_router
 from annotator.classes.router import router as classes_router
 from annotator.common.problem import install_problem_handlers
@@ -20,7 +21,7 @@ from annotator.realtime.broadcaster import RESYNC, Broadcaster
 from annotator.realtime.dependencies import get_listener_factory, get_message_builder
 from annotator.realtime.router import router as realtime_router
 from annotator.storage.dependencies import get_storage
-from annotator.storage.storage_service import EXPORTS_BUCKET, IMAGES_BUCKET, StorageError
+from annotator.storage.storage_service import IMAGES_BUCKET, StorageError
 from annotator.worker_status.router import router as worker_status_router
 
 log = logging.getLogger(__name__)
@@ -28,11 +29,10 @@ log = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Buckets are created here, not in Flyway, so the migrations stay plain Postgres.
+    # The bucket is created here, not in Flyway, so the migrations stay plain Postgres.
     storage = _resolve(app, get_storage)
     try:
-        for bucket in (IMAGES_BUCKET, EXPORTS_BUCKET):
-            storage.ensure_bucket(bucket)
+        storage.ensure_bucket(IMAGES_BUCKET)
     except StorageError as e:
         log.warning("Couldn't check the storage buckets (is `supabase start` running?): %s", e)
 
@@ -92,6 +92,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(job_router)
     app.include_router(activity_router)
     app.include_router(health_router)
+    app.include_router(export_router)
     app.include_router(worker_status_router)
     app.include_router(realtime_router)
     return app

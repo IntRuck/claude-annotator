@@ -12,6 +12,7 @@ import { getBoxes, saveBoxes } from '@/features/editor/api/labelsApi';
 import { getEngineStatus, getJobSummary, queueJobs, resumeWorker } from '@/features/jobs/api/jobsApi';
 import { listActivity } from '@/features/activity/api/activityApi';
 import { getHealth } from '@/features/health/api/healthApi';
+import { getExportSummary } from '@/features/export/api/exportApi';
 import WorkspacePage from './WorkspacePage';
 
 vi.mock('react-konva', () => import('@/test/konvaStub'));
@@ -30,6 +31,7 @@ vi.mock('@/features/jobs/api/jobsApi', () => ({
 }));
 vi.mock('@/features/activity/api/activityApi', () => ({ listActivity: vi.fn() }));
 vi.mock('@/features/health/api/healthApi', () => ({ getHealth: vi.fn() }));
+vi.mock('@/features/export/api/exportApi', async (importOriginal) => ({ ...(await importOriginal()), getExportSummary: vi.fn() }));
 
 const image = (id, fileName, status = 'unlabeled', extra = {}) => ({
   id, projectId: 4, fileName, status, width: 640, height: 480, boxCount: 0, flagged: false, flagReason: '', flagNote: '',
@@ -78,6 +80,7 @@ describe('WorkspacePage', () => {
     getEngineStatus.mockReset().mockResolvedValue({ workerOnline: true, lastSeenAt: new Date().toISOString(), engines: {}, paused: [] });
     resumeWorker.mockReset().mockResolvedValue({ resumed: ['gemini'] });
     getHealth.mockReset().mockResolvedValue(HEALTH);
+    getExportSummary.mockReset().mockResolvedValue({ images: 1, boxes: 1, train: 1, val: 0 });
     localStorage.clear();
   });
 
@@ -384,6 +387,26 @@ describe('WorkspacePage', () => {
       await userEvent.click(screen.getByRole('button', { name: 'Health check' }));
       await waitFor(() => expect(saveBoxes).toHaveBeenCalledWith(1, { boxes: [], status: 'edited', expectedUpdatedAt: 'T1' }));
       expect(await screen.findByRole('dialog', { name: 'Dataset health' })).toBeInTheDocument();
+    });
+  });
+
+  describe('export', () => {
+    it('opens the export dialog from the top bar, with download links for this project', async () => {
+      renderPage();
+      await userEvent.click(await screen.findByRole('button', { name: 'Export' }));
+      expect(screen.getByRole('dialog', { name: 'Export labels' })).toBeInTheDocument();
+      expect(await screen.findByRole('link', { name: 'Download YOLO zip' }))
+        .toHaveAttribute('href', '/api/projects/4/exports/yolo?onlyReviewed=false&skipFlagged=true');
+    });
+
+    it('saves unsaved edits before exporting, so the download has them', async () => {
+      renderPage();
+      await waitForImage(1);
+      await userEvent.click(screen.getByRole('tab', { name: /^Boxes/ }));
+      await userEvent.click(screen.getByRole('button', { name: 'Delete box' }));
+      await userEvent.click(screen.getByRole('button', { name: 'Export' }));
+      await waitFor(() => expect(saveBoxes).toHaveBeenCalledWith(1, { boxes: [], status: 'edited', expectedUpdatedAt: 'T1' }));
+      expect(await screen.findByRole('dialog', { name: 'Export labels' })).toBeInTheDocument();
     });
   });
 });

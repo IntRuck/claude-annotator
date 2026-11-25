@@ -1,13 +1,12 @@
 """Dataset health report, moved from today's app.health_report. Pure: works on rows already loaded.
 
 Two changes from today:
-- "Labelled" was "has a label file". In v2 an image counts as labelled once the AI, an import or a person saved
-  boxes for it (status auto / edited / reviewed), or whenever it has boxes.
+- "Labelled" was "has a label file"; v2 uses `label.rules.is_labelled` (shared with exports).
 - The "class ID not in class list" issue is gone: the database refuses a box whose class doesn't exist.
 """
 from annotator.engine.geometry import iou
+from annotator.label.rules import is_labelled
 
-LABELLED_STATUSES = ("auto", "edited", "reviewed")
 DUPLICATE_IOU = 0.85
 TINY_SIDE = 0.005   # narrower or shorter than 0.5% of the image
 CROWDED = 100       # more boxes than this on one image
@@ -51,7 +50,7 @@ def build_report(classes: list[tuple[int, str]], images: list, boxes: dict[int, 
         if img.status == "error":
             issues["errors"].append(img.id)
         image_boxes = boxes.get(img.id, [])
-        if img.status not in LABELLED_STATUSES and not image_boxes:
+        if not is_labelled(img.status, len(image_boxes)):
             issues["unlabeled"].append(img.id)
             continue
         labelled += 1

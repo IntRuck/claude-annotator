@@ -1,0 +1,11 @@
+.export-dialog .export-option { display: flex; align-items: center; gap: 8px; margin: 8px 0; font-size: 14px; }
+.export-dialog .muted { color: var(--muted); font-size: 12px; }
+.export-summary { margin: 12px 0 0; font-size: 13px; font-weight: 600; }
+.export-actions { display: flex; gap: 8px; margin-top: 12px; }
+/* Download links look like the app's buttons. */
+.export-actions a.button { display: inline-block; text-decoration: none; color: var(--text); background: #fff;
+  border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; }
+.export-actions a.button:hover { border-color: #c9ced6; background: var(--soft); }
+.export-actions a.button.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+.export-actions a.button.primary:hover { filter: brightness(.95); }
+.export-tips { margin-top: 14px; font-size: 12px; color: var(--muted); line-height: 1.5; }
