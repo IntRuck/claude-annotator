@@ -1,17 +1,17 @@
 .image-strip { display: flex; flex-direction: column; min-height: 0; flex: 1; }
 .strip-counter { display: flex; align-items: center; justify-content: space-between; padding: 4px 10px; }
-.strip-counter button { border: none; background: none; font-size: 20px; padding: 2px 10px; }
-.strip-counter .num { font-size: 20px; font-weight: 600; }
-.strip-counter .tot { color: var(--muted); font-weight: 400; font-size: 15px; }
+.strip-counter button { border: none; background: none; font-size: var(--text-xl); padding: 2px 10px; }
+.strip-counter .num { font-size: var(--text-xl); font-weight: 600; }
+.strip-counter .tot { color: var(--muted); font-weight: 400; font-size: var(--text-lg); }
 .strip-filter { margin: 4px 10px 8px; }
 .strip-thumbs { flex: 1; overflow: auto; padding: 0 10px 10px; }
 .thumb { position: relative; display: block; width: 100%; margin: 6px 0; padding: 4px; border-radius: 10px; border: 2px solid transparent; background: none; text-align: left; }
 .thumb:hover { background: var(--soft); }
 .thumb[aria-current="true"] { border-color: var(--accent); background: var(--accent-soft); }
-.thumb img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 7px; display: block; background: #e5e7eb; }
+.thumb img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 7px; display: block; background: var(--soft); }
 .thumb .badges { position: absolute; top: 9px; right: 9px; display: flex; gap: 4px; }
-.thumb .badges span { background: #fffe; border-radius: 8px; padding: 0 6px; font-size: 11px; font-weight: 600; }
-.thumb .name { display: flex; align-items: center; gap: 6px; font-size: 12px; margin-top: 4px; padding: 0 2px; }
+.thumb .badges span { background: color-mix(in srgb, var(--panel) 93%, transparent); color: var(--text); border-radius: 8px; padding: 0 6px; font-size: var(--text-xs); font-weight: 600; }
+.thumb .name { display: flex; align-items: center; gap: 6px; font-size: var(--text-sm); margin-top: 4px; padding: 0 2px; }
 .thumb .n { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* Status colours, same as today */
@@ -22,4 +22,4 @@
 .upload-button { display: block; text-align: center; border: 1.5px solid var(--accent); color: var(--accent); border-radius: 8px; padding: 7px; font-weight: 600; cursor: pointer; }
 .upload-button:hover { background: var(--accent-soft); }
 .upload-button input { display: none; }
-.upload-result { font-size: 12px; margin-top: 6px; }
+.upload-result { font-size: var(--text-sm); margin-top: 6px; }

@@ -83,6 +83,37 @@ describe('Menu', () => {
     expect(screen.getByRole('menuitem', { name: 'Delete…' })).toHaveClass('danger');
   });
 
+  describe('tickable items', () => {
+    function setupTicks() {
+      const onDark = vi.fn();
+      render(
+        <Menu label="More" items={[
+          { label: 'Import dataset', onSelect: vi.fn() },
+          { separator: true },
+          { label: 'Light theme', onSelect: vi.fn(), checked: false },
+          { label: 'Dark theme', onSelect: onDark, checked: true },
+        ]}>⋯</Menu>,
+      );
+      return { onDark, trigger: screen.getByRole('button', { name: 'More' }) };
+    }
+
+    it('say which one is ticked', async () => {
+      const { trigger } = setupTicks();
+      await userEvent.click(trigger);
+      expect(screen.getByRole('menuitemradio', { name: 'Dark theme' })).toHaveAttribute('aria-checked', 'true');
+      expect(screen.getByRole('menuitemradio', { name: 'Light theme' })).toHaveAttribute('aria-checked', 'false');
+    });
+
+    it('are reached with the arrow keys like the others, and run when chosen', async () => {
+      const { trigger, onDark } = setupTicks();
+      await userEvent.click(trigger);
+      await userEvent.keyboard('{ArrowDown}');
+      expect(screen.getByRole('menuitemradio', { name: 'Light theme' })).toHaveFocus();
+      await userEvent.keyboard('{ArrowDown}{Enter}');
+      expect(onDark).toHaveBeenCalledOnce();
+    });
+  });
+
   it('shows the button content and a tooltip', () => {
     setup({ title: 'Project tools' });
     expect(screen.getByRole('button', { name: 'More' })).toHaveTextContent('⋯');

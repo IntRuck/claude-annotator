@@ -4,6 +4,17 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Claude Annotator</title>
+    <script>
+      // Light / Dark / Auto before the app loads, so dark mode doesn't flash white. Same rule as
+      // src/features/theme/lib/theme.js: anything other than 'light' or 'dark' follows the computer.
+      (function () {
+        var choice = null;
+        try { choice = localStorage.getItem('annotator-theme'); } catch (e) { /* storage blocked */ }
+        var dark = choice === 'dark' || (choice !== 'light' && !!window.matchMedia
+          && window.matchMedia('(prefers-color-scheme: dark)').matches);
+        document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

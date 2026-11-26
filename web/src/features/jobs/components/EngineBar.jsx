@@ -20,7 +20,7 @@ function WorkerOffline({ status }) {
 function ModelPicker({ info, value, reported, onChange }) {
   if (info.choices) {
     return (
-      <select aria-label={info.modelLabel} value={value} onChange={(e) => onChange(e.target.value)}>
+      <select aria-label={info.modelLabel} className="model" value={value} onChange={(e) => onChange(e.target.value)}>
         {info.choices.map(([model, text]) => <option key={model} value={model}>{text}</option>)}
       </select>
     );

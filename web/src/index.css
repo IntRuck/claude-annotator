@@ -1,14 +1,39 @@
-/* Colours and base styles carried over from today's index.html. */
+/* Colours carried over from today's index.html, as tokens. Every colour and text size in the app comes from here,
+   so dark mode only has to swap these values. Colours drawn on top of photos (box colours, canvas labels, thumbnail
+   status dots) are not tokens: they look the same in both themes. */
 :root {
-  --bg: #f6f7f9; --panel: #ffffff; --line: #e3e6ea; --text: #1d2128; --muted: #6b7280; --soft: #f1f3f5;
-  --accent: #d97757; --accent-soft: #fbeee8; --ok: #16a34a; --ok-soft: #e8f6ec; --bad: #dc2626; --bad-soft: #fdecec;
+  --bg: #f6f7f9; --panel: #ffffff; --line: #e3e6ea; --line-strong: #c9ced6; --text: #1d2128; --muted: #6b7280; --soft: #f1f3f5;
+  --field: #ffffff;
+  --accent: #d97757; --accent-soft: #fbeee8;
+  --ok: #16a34a; --ok-soft: #e8f6ec; --ok-line: #bfe5cb;
+  --bad: #dc2626; --bad-soft: #fdecec; --bad-line: #f5c7c7;
+  --warn: #b45309; --warn-soft: #fef3c7; --warn-line: #fcd34d;
   --stage: #2a2d33;
+  --backdrop: #1d212899; --shadow: #1d212826;
+
+  /* One text scale for the whole app (base 14px). */
+  --text-xs: 12px; --text-sm: 13px; --text-md: 14px; --text-lg: 16px; --text-xl: 20px; --text-2xl: 28px;
+  --font: 'Atkinson Hyperlegible Next Variable', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  color-scheme: light;
+}
+/* Dark mode: darker versions of the same colours. Orange and green stay recognisable; the photo area gets a bit
+   darker so photos stand out. `data-theme` is set by index.html before the app loads, then by useTheme. */
+:root[data-theme="dark"] {
+  --bg: #16181b; --panel: #1e2125; --line: #2f343a; --line-strong: #454b53; --text: #e7e9ec; --muted: #9ba3ad; --soft: #272b30;
+  --field: #16181b;
+  --accent: #d97757; --accent-soft: #3a2a24;
+  --ok: #22c55e; --ok-soft: #15301f; --ok-line: #1f5132;
+  --bad: #f87171; --bad-soft: #3a1e1e; --bad-line: #5c2626;
+  --warn: #f59e0b; --warn-soft: #3a2c12; --warn-line: #6b4e16;
+  --stage: #121417;
+  --backdrop: #000000a6; --shadow: #00000080;
+  color-scheme: dark;
 }
 * { box-sizing: border-box; }
-body { margin: 0; font: 13px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; background: var(--bg); color: var(--text); }
-button, select, input, textarea { font: inherit; color: var(--text); background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; }
+body { margin: 0; font: var(--text-md)/1.45 var(--font); background: var(--bg); color: var(--text); }
+button, select, input, textarea { font: inherit; color: var(--text); background: var(--field); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; }
 button { cursor: pointer; }
-button:hover { border-color: #c9ced6; background: var(--soft); }
+button:hover { border-color: var(--line-strong); background: var(--soft); }
 button:disabled { opacity: .45; cursor: not-allowed; }
 button.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
 button.primary:hover { filter: brightness(.95); }

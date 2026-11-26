@@ -15,6 +15,7 @@ import {
 import { ActivityLog, applyActivityMessage, useActivity } from '@/features/activity';
 import { HealthDialog } from '@/features/health';
 import { ExportDialog } from '@/features/export';
+import { THEME_OPTIONS, useTheme } from '@/features/theme';
 import { useLiveUpdates } from '@/lib/realtime/useLiveUpdates';
 import './pages.css';
 
@@ -53,6 +54,7 @@ function Workspace({ projectId }) {
   const engineStatus = useEngineStatus();
   const resume = useResumeWorker();
   const activity = useActivity(projectId);
+  const theme = useTheme();
   const [aiNotice, setAiNotice] = useState('');
   const [skuOpen, setSkuOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
@@ -201,10 +203,15 @@ function Workspace({ projectId }) {
           <button type="button" onClick={() => openDialog(setExportOpen)} title="Download the labels as YOLO or COCO">
             Export
           </button>
-          <Menu label="More" title="Import, SKUs, project details" align="end" className="bar-more" items={[
+          <Menu label="More" title="Import, SKUs, project details, light or dark" align="end" className="bar-more" items={[
             { label: 'Import dataset', onSelect: () => openDialog(setImportOpen) },
             { label: 'SKUs', onSelect: () => openDialog(setSkuOpen) },
             { label: 'Edit project details', onSelect: () => openDialog(setEditOpen) },
+            { separator: true },
+            // The top bar is full, so Light / Dark / Auto lives here (the projects page has a switch).
+            ...THEME_OPTIONS.map(([value, label]) => ({
+              label: `${label} theme`, checked: theme.choice === value, onSelect: () => theme.setChoice(value),
+            })),
           ]}>⋯</Menu>
         </div>
       </header>

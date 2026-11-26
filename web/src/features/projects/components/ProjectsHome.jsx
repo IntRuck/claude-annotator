@@ -4,10 +4,10 @@ import { useProjectSummaries } from '../hooks/useProjects';
 import { arrangeProjects, SORTS } from '../lib/listing';
 import DeleteProjectDialog from './DeleteProjectDialog';
 import ProjectFormDialog from './ProjectFormDialog';
-import ProjectRow from './ProjectRow';
+import ProjectCard from './ProjectCard';
 import '../styles/projects.css';
 
-/** The projects page: every project as a row with its progress, plus search, sort, new, edit and delete. */
+/** The projects page: every project as a card with its cover photo and progress, plus search, sort, new, edit and delete. */
 export default function ProjectsHome() {
   const summaries = useProjectSummaries();
   const [query, setQuery] = useState('');
@@ -45,10 +45,10 @@ export default function ProjectsHome() {
       {all.length > 0 && shown.length === 0 && <EmptyState>No projects match “{query.trim()}”.</EmptyState>}
 
       {shown.length > 0 && (
-        <ul className="project-rows">
+        <ul className="project-cards">
           {shown.map((p) => (
-            <ProjectRow key={p.id} project={p} onEdit={(project) => setDialog({ kind: 'edit', project })}
-                        onDelete={(project) => setDialog({ kind: 'delete', project })} />
+            <ProjectCard key={p.id} project={p} onEdit={(project) => setDialog({ kind: 'edit', project })}
+                         onDelete={(project) => setDialog({ kind: 'delete', project })} />
           ))}
         </ul>
       )}

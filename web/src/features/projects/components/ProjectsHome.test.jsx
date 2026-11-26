@@ -22,7 +22,7 @@ const SHELF = summary(1, 'Shelf A', {
 });
 const EMPTY = summary(2, 'test');
 
-const row = (name) => screen.getByRole('link', { name }).closest('li');
+const card = (name) => screen.getByRole('link', { name }).closest('li');
 
 async function openRowMenu(name, item) {
   await userEvent.click(await screen.findByRole('button', { name: `Actions for ${name}` }));
@@ -37,33 +37,34 @@ describe('ProjectsHome', () => {
     deleteProject.mockReset();
   });
 
-  it('shows each project as a row that opens its workspace', async () => {
+  it('shows each project as a card that opens its workspace', async () => {
     renderWithProviders(<ProjectsHome />);
     expect(await screen.findByRole('link', { name: 'Shelf A' })).toHaveAttribute('href', '/projects/1');
     expect(screen.getByRole('link', { name: 'test' })).toHaveAttribute('href', '/projects/2');
   });
 
-  it('a row shows the description, numbers, progress and cover photo', async () => {
+  it('a card shows the description, numbers, progress and cover photo', async () => {
     renderWithProviders(<ProjectsHome />);
     await screen.findByRole('link', { name: 'Shelf A' });
-    const shelf = within(row('Shelf A'));
+    const shelf = within(card('Shelf A'));
     expect(shelf.getByText('Store 3 shelves')).toBeInTheDocument();
     expect(shelf.getByText('240 images')).toBeInTheDocument();
     expect(shelf.getByText('12 SKUs')).toBeInTheDocument();
     expect(shelf.getByText('48 to approve')).toBeInTheDocument();
     expect(shelf.getByText('2 flagged')).toBeInTheDocument();
     expect(shelf.getByText('80% labelled, 60% approved')).toBeInTheDocument();
-    expect(row('Shelf A').querySelector('img')).toHaveAttribute('src', '/api/images/9/thumb');
+    expect(card('Shelf A').querySelector('img')).toHaveAttribute('src', '/api/images/9/thumb');
   });
 
   it('a project without photos says so and hides the zero counts', async () => {
     renderWithProviders(<ProjectsHome />);
     await screen.findByRole('link', { name: 'test' });
-    const empty = within(row('test'));
+    const empty = within(card('test'));
     expect(empty.getByText('No photos yet')).toBeInTheDocument();
+    expect(empty.getByText('Upload photos to start')).toBeInTheDocument();
     expect(empty.queryByText(/flagged/)).not.toBeInTheDocument();
     expect(empty.queryByText(/to approve/)).not.toBeInTheDocument();
-    expect(row('test').querySelector('img')).toBeNull();
+    expect(card('test').querySelector('img')).toBeNull();
   });
 
   it('shows an empty state when there are no projects', async () => {

@@ -38,10 +38,13 @@ export function Modal({ title, onClose, actions, children, wide = false }) {
   );
 }
 
+const ITEMS = '[role="menuitem"], [role="menuitemradio"]';
+
 /**
  * A button that opens a small list of actions. `label` names the button for screen readers (the visible content is
- * `children`, e.g. "⋯"); `items` are { label, onSelect, danger? } or { separator: true }. Esc, Tab or a click outside
- * closes it; arrow keys move. Keys pressed inside stop here, so page-wide shortcuts (the editor's) don't fire.
+ * `children`, e.g. "⋯"); `items` are { label, onSelect, danger? } or { separator: true }; an item with `checked`
+ * (true / false) is one of a set where one is ticked (e.g. Light / Dark / Auto). Esc, Tab or a click outside closes
+ * it; arrow keys move. Keys pressed inside stop here, so page-wide shortcuts (the editor's) don't fire.
  */
 export function Menu({ label, items, children, title, align = 'start', className = '' }) {
   const [open, setOpen] = useState(false);
@@ -52,7 +55,7 @@ export function Menu({ label, items, children, title, align = 'start', className
 
   useEffect(() => {
     if (!open) return undefined;
-    listRef.current?.querySelector('[role="menuitem"]')?.focus();
+    listRef.current?.querySelector(ITEMS)?.focus();
     const onPointer = (e) => { if (!rootRef.current?.contains(e.target)) setOpen(false); };
     document.addEventListener('mousedown', onPointer);
     return () => document.removeEventListener('mousedown', onPointer);
@@ -65,7 +68,7 @@ export function Menu({ label, items, children, title, align = 'start', className
 
   const onKeyDown = (e) => {
     e.stopPropagation();
-    const entries = [...listRef.current.querySelectorAll('[role="menuitem"]')];
+    const entries = [...listRef.current.querySelectorAll(ITEMS)];
     const at = entries.indexOf(document.activeElement);
     const move = { ArrowDown: at + 1, ArrowUp: at - 1, Home: 0, End: entries.length - 1 }[e.key];
     if (move !== undefined) {
@@ -96,8 +99,12 @@ export function Menu({ label, items, children, title, align = 'start', className
           {items.map((item, i) => (item.separator
             ? <hr key={`sep-${i}`} />
             : (
-              <button key={item.label} type="button" role="menuitem" tabIndex={-1}
-                      className={item.danger ? 'danger' : undefined} onClick={() => choose(item)}>
+              <button key={item.label} type="button" tabIndex={-1} className={item.danger ? 'danger' : undefined}
+                      {...(item.checked === undefined
+                        ? { role: 'menuitem' }
+                        : { role: 'menuitemradio', 'aria-checked': item.checked })}
+                      onClick={() => choose(item)}>
+                {item.checked !== undefined && <span className="ui-menu-tick" aria-hidden="true">{item.checked ? '✓' : ''}</span>}
                 {item.label}
               </button>
             )))}

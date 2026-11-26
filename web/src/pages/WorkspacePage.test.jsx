@@ -119,6 +119,17 @@ describe('WorkspacePage', () => {
     expect(screen.getByRole('dialog', { name: 'Import a dataset' })).toBeInTheDocument();
   });
 
+  it('switches to dark mode from the ⋯ menu, and the menu shows it ticked', async () => {
+    renderPage();
+    await userEvent.click(await screen.findByRole('button', { name: 'More' }));
+    await userEvent.click(screen.getByRole('menuitemradio', { name: 'Dark theme' }));
+    expect(document.documentElement.dataset.theme).toBe('dark');
+    await userEvent.click(screen.getByRole('button', { name: 'More' }));
+    expect(screen.getByRole('menuitemradio', { name: 'Dark theme' })).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByRole('menuitemradio', { name: 'Auto theme' })).toHaveAttribute('aria-checked', 'false');
+    delete document.documentElement.dataset.theme;
+  });
+
   it('opens the SKU manager straight away when the project has no classes yet', async () => {
     listClasses.mockResolvedValue([]);
     renderPage();

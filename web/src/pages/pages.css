@@ -1,8 +1,8 @@
-/* Projects page: same thin top bar as the workspace, content left-aligned below it */
+/* Projects page: a thin top bar (name, Light / Dark / Auto), the projects centred below it */
 .home { min-height: 100vh; }
-.home-bar { display: flex; align-items: center; padding: 10px 24px; background: var(--panel); border-bottom: 1px solid var(--line); }
-.home-bar h1 { margin: 0; font-size: 15px; }
-.home-main { padding: 28px 24px 40px; }
+.home-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 24px; background: var(--panel); border-bottom: 1px solid var(--line); }
+.home-bar h1 { margin: 0; font-size: var(--text-lg); }
+.home-main { padding: 32px 24px 40px; }
 @media (max-width: 640px) { .home-bar, .home-main { padding-left: 16px; padding-right: 16px; } }
 
 /* Workspace: three columns, both sides the same width. The top bar uses the same columns (subgrid), so its
@@ -12,31 +12,33 @@
 .bar-group { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; min-width: 0; padding: 8px; }
 .bar-where { flex-wrap: nowrap; border-right: 1px solid var(--line); }
 .bar-ai > .engine-bar { flex: 1 1 auto; min-width: 0; } /* wraps inside the middle column when it doesn't fit */
-.bar-tools { justify-content: flex-end; padding: 8px 10px; border-left: 1px solid var(--line); } /* 10px like the column below */
+.bar-tools { padding: 8px 10px; border-left: 1px solid var(--line); } /* 10px like the column below */
+.bar-tools > button { flex: 1 1 auto; } /* Health check and Export share the width; ⋯ keeps its size */
 .bar-back { flex: none; white-space: nowrap; }
-.workspace-bar h1 { margin: 0; font-size: 15px; min-width: 0; }
-.switcher { min-width: 0; max-width: 100%; }
-.switcher > button { display: flex; align-items: center; gap: 6px; min-width: 0; max-width: 100%; border-color: transparent; font-weight: 700; }
-.switcher > button:hover, .switcher > button[aria-expanded="true"] { border-color: var(--line); }
+/* Each part fills its space: the project switcher is a picker box that stretches, Live after it. */
+.workspace-bar h1 { flex: 1 1 auto; margin: 0; font-size: var(--text-lg); min-width: 0; }
+.switcher { width: 100%; min-width: 0; }
+.switcher > button { display: flex; align-items: center; justify-content: space-between; gap: 6px; width: 100%; min-width: 0; font-weight: 700; }
+.switcher > button:hover, .switcher > button[aria-expanded="true"] { border-color: var(--line-strong); }
 .switcher-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.switcher-caret { color: var(--muted); font-size: 11px; }
+.switcher-caret { color: var(--muted); font-size: var(--text-xs); }
 .switcher .ui-menu-list { max-height: 60vh; overflow: auto; font-weight: 400; }
-.bar-more > button { width: 32px; padding: 6px 0; font-size: 16px; line-height: 1; }
+.bar-more > button { width: 32px; padding: 6px 0; font-size: var(--text-lg); line-height: 1; }
 .workspace-gone { padding: 48px 24px; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
-.workspace-gone p { margin: 0; font-size: 15px; }
-.live-status { flex: none; font-size: 12px; color: var(--muted); white-space: nowrap; } /* the project name gives way, not this */
+.workspace-gone p { margin: 0; font-size: var(--text-lg); }
+.live-status { flex: none; font-size: var(--text-sm); color: var(--muted); white-space: nowrap; } /* the project name gives way, not this */
 .live-status::before { content: '●'; margin-right: 4px; }
-.live-status.live::before { color: #16a34a; }
-.live-status.connecting::before { color: #ca8a04; }
-.live-status.offline::before { color: #dc2626; }
+.live-status.live::before { color: var(--ok); }
+.live-status.connecting::before { color: var(--warn); }
+.live-status.offline::before { color: var(--bad); }
 .workspace-left { background: var(--panel); border-right: 1px solid var(--line); padding: 8px; min-height: 0; overflow: auto; }
 .workspace-stage { background: var(--stage); display: flex; align-items: center; justify-content: center; min-height: 0; overflow: hidden; }
-.workspace-stage .ui-empty { color: #c8ccd2; font-size: 14px; }
+.workspace-stage .ui-empty { color: #c8ccd2; font-size: var(--text-md); }
 .stage-image { max-width: 92%; max-height: 92%; object-fit: contain; }
 .workspace-right { background: var(--panel); border-left: 1px solid var(--line); display: flex; flex-direction: column; min-height: 0; }
 .workspace-stage { position: relative; }
 .tabs { display: flex; margin: 6px 0; border-bottom: 1px solid var(--line); }
 .tabs button { flex: 1; border: none; border-radius: 0; background: none; padding: 8px 0; color: var(--muted); border-bottom: 2px solid transparent; }
 .tabs button[aria-selected="true"] { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
-.badge { font-size: 11px; font-weight: 600; background: var(--soft); border-radius: 10px; padding: 1px 8px; color: var(--muted); }
-.image-note { font-size: 12px; color: #b45309; padding: 0 6px; }
+.badge { font-size: var(--text-xs); font-weight: 600; background: var(--soft); border-radius: 10px; padding: 1px 8px; color: var(--muted); }
+.image-note { font-size: var(--text-sm); color: var(--warn); padding: 0 6px; }

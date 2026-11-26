@@ -105,7 +105,7 @@ Open **http://localhost:5173**.
 
 ## Using it
 
-1. **Projects page**: click **New project**, give it a name (and a short description if you like), then click its row to open it. Each row shows a cover photo, how much is labelled (green = approved, orange = labelled but not approved yet), and what's waiting. Search and sort sit above the list. The **⋯** on a row lets you edit the name and description, or delete the project. Deleting removes its photos, labels and SKUs for good, so you type the project's name to confirm. In a project, **← Projects** (top left) brings you back. Click the project's name to jump straight to another project. Both save unsaved box edits first.
+1. **Projects page**: click **New project**, give it a name (and a short description if you like), then click its card to open it. Projects show as cards, three per row, each with its cover photo on top, how much is labelled (green = approved, orange = labelled but not approved yet), and what's waiting. Search and sort sit above the cards. The **⋯** on a card lets you edit the name and description, or delete the project. Deleting removes its photos, labels and SKUs for good, so you type the project's name to confirm. In a project, **← Projects** (top left) brings you back. Click the project's name to jump straight to another project. Both save unsaved box edits first.
 2. **SKUs**: the SKU manager opens for a new project. Add each SKU:
    - **name** goes into your export
    - **detector prompt** is a short phrase Grounding DINO / YOLO-World search for ("red tin can" works much better than a SKU code)
@@ -115,7 +115,9 @@ Open **http://localhost:5173**.
 3. **Add images**: **Upload images**, or **Import dataset** to bring in an existing YOLO set. Import takes the images plus their `.txt` labels, and the class list from `classes.txt` (one SKU per line as `name | detector prompt | description`, see `classes.example.txt`) or `data.yaml`. A `_annot_state.json` from the old Claude Annotator brings its statuses and flags along.
 4. **Label, check, fix**, then **Export**.
 
-Layout: **left** = this image (classes and boxes, AI buttons, activity log), **centre** = the editor, **right** = upload, Approve / Flag, filter and thumbnails. **Top**, split along the same three columns: where you are (← Projects, project name with ● Live next to it; hover the name for its full text), the AI (picker, options, batch runs), and project tools (Health check, Export, and **⋯** for Import dataset, SKUs and Edit project details). **Edit SKUs** also sits under the class list.
+Layout: **left** = this image (classes and boxes, AI buttons, activity log), **centre** = the editor, **right** = upload, Approve / Flag, filter and thumbnails. **Top**, split along the same three columns: where you are (← Projects, project name with ● Live next to it; hover the name for its full text), the AI (picker, options, batch runs), and project tools (Health check, Export, and **⋯** for Import dataset, SKUs, Edit project details and Light / Dark / Auto). **Edit SKUs** also sits under the class list.
+
+**Light or dark**: the switch at the top right of the projects page (or the workspace's **⋯** menu) picks Light, Dark or Auto. Auto follows your computer's setting; the browser remembers your choice. The font (Atkinson Hyperlegible Next, made to be easy to read) comes with the app, so it works offline.
 
 Pick an AI in the top bar. Its options appear next to it:
 
