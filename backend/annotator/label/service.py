@@ -6,8 +6,6 @@ from annotator.label.repository import LabelRepository
 from annotator.label.rules import clean_boxes
 from annotator.label.schemas import BoxOut, ImageBoxes, SaveBoxes, SaveResult
 
-EDITOR_STATUSES = ("edited", "reviewed")
-
 
 class LabelService:
     """Boxes of an image: read, save from the editor (with a save-conflict check), replace (import / AI)."""
@@ -28,8 +26,6 @@ class LabelService:
         return ImageBoxes(boxes=self._boxes(image_id), updated_at=image.updated_at)
 
     def save(self, image_id: int, body: SaveBoxes) -> SaveResult:
-        if body.status not in EDITOR_STATUSES:
-            raise ApiError(400, "BAD_SAVE_STATUS", "The editor saves as 'edited' or 'reviewed'.")
         image = self.images.get_image(image_id)
         if image.updated_at != body.expected_updated_at:
             raise ApiError(409, "STALE_IMAGE", "This image was changed since you opened it (by someone else or the AI). "

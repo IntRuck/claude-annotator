@@ -1,8 +1,10 @@
 from datetime import datetime
+from typing import Literal, get_args
 
 from annotator.common.schemas import ApiModel
 
-FILTERS = ("all", "unlabeled", "auto", "edited", "reviewed", "flagged", "error")
+ImageFilter = Literal["all", "unlabeled", "auto", "edited", "reviewed", "flagged", "error"]
+FILTERS = get_args(ImageFilter)
 
 
 class ImageOut(ApiModel):

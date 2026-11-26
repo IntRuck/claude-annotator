@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Literal
 
 from pydantic import AliasChoices, Field
 
@@ -35,7 +36,7 @@ class ImageBoxes(ApiModel):
 
 class SaveBoxes(ApiModel):
     boxes: list[BoxIn]
-    status: str  # "edited" (S) or "reviewed" (Approve / R)
+    status: Literal["edited", "reviewed"]  # S or Approve (R)
     expected_updated_at: datetime
 
 

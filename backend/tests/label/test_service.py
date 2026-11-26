@@ -95,11 +95,6 @@ def test_saving_with_an_old_version_is_409_and_changes_nothing(world):
     assert images.get(1).status == "unlabeled"
 
 
-def test_only_edited_or_reviewed_can_be_saved_from_the_editor(world):
-    service, _, _ = world
-    assert error_of(lambda: service.save(1, SaveBoxes(boxes=[], status="auto", expected_updated_at=NOW))) == (400, "BAD_SAVE_STATUS")
-
-
 def test_a_box_with_a_class_the_project_does_not_have_is_400(world):
     service, _, _ = world
     assert error_of(lambda: service.save(1, SaveBoxes(boxes=[box(5)], status="edited", expected_updated_at=NOW))) == (400, "UNKNOWN_CLASS")

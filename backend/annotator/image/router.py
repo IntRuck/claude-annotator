@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 
 from annotator.db.session import get_session
 from annotator.image.repository import ImageRepository
-from annotator.image.schemas import FlagIn, ImageList, ImageOut, UploadResult
+from annotator.image.schemas import FlagIn, ImageFilter, ImageList, ImageOut, UploadResult
 from annotator.image.service import SIGNED_URL_SECONDS, ImageService, UploadedFile
 from annotator.project.repository import ProjectRepository
 from annotator.project.service import ProjectService
@@ -30,7 +30,7 @@ def upload_images(project_id: int, files: list[UploadFile] = File(...),
 
 
 @router.get("/projects/{project_id}/images", response_model=ImageList)
-def list_images(project_id: int, filter: str = "all", service: ImageService = Depends(get_image_service)):
+def list_images(project_id: int, filter: ImageFilter = "all", service: ImageService = Depends(get_image_service)):
     return service.list_images(project_id, filter)
 
 

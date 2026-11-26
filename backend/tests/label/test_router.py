@@ -55,6 +55,17 @@ def test_put_with_an_old_version_is_problem_409(client):
     assert (r.status_code, r.json()["code"]) == (409, "STALE_IMAGE")
 
 
+def test_the_editor_saves_only_as_edited_or_reviewed(client):
+    r = client.put("/api/images/1/boxes", json={"boxes": [], "status": "auto", "expectedUpdatedAt": STAMP})
+    assert (r.status_code, r.json()["code"]) == (400, "VALIDATION_FAILED")
+    assert [e["field"] for e in r.json()["errors"]] == ["status"]
+
+
+def test_the_docs_list_the_save_statuses(client):
+    props = client.get("/openapi.json").json()["components"]["schemas"]["SaveBoxes"]["properties"]
+    assert props["status"]["enum"] == ["edited", "reviewed"]
+
+
 def test_flag_and_unflag(client):
     r = client.put("/api/images/1/flag", json={"flagged": True, "reason": "unsure", "note": "left can"})
     assert (r.json()["flagged"], r.json()["flagReason"], r.json()["flagNote"]) == (True, "unsure", "left can")

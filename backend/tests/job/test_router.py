@@ -57,6 +57,17 @@ def test_summary_and_stop(client):
     assert client.get("/api/projects/1/jobs/summary").json()["queued"] == 0
 
 
-def test_bad_target_is_problem_json(client):
-    r = client.post("/api/projects/1/jobs", json={"target": "everything"})
-    assert (r.status_code, r.json()["code"]) == (400, "UNKNOWN_TARGET")
+@pytest.mark.parametrize(("body", "field"), [
+    ({"target": "everything"}, "target"),
+    ({"target": "unlabeled", "kind": "paint"}, "kind"),
+])
+def test_a_word_outside_the_list_is_a_validation_error_naming_the_field(client, body, field):
+    r = client.post("/api/projects/1/jobs", json=body)
+    assert (r.status_code, r.json()["code"]) == (400, "VALIDATION_FAILED")
+    assert [e["field"] for e in r.json()["errors"]] == [field]
+
+
+def test_the_docs_list_the_allowed_kinds_and_targets(client):
+    props = client.get("/openapi.json").json()["components"]["schemas"]["JobCreate"]["properties"]
+    assert props["kind"]["enum"] == ["annotate", "refine"]
+    assert props["target"]["enum"] == ["image", "unlabeled", "errors", "all", "auto"]

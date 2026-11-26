@@ -14,7 +14,6 @@ TARGETS: dict[str, dict[str, list[str] | None]] = {
     "annotate": {"image": None, "unlabeled": ["unlabeled", "error"], "errors": ["error"], "all": None},
     "refine": {"image": None, "auto": ["auto"]},
 }
-KINDS = tuple(TARGETS)
 PROTECTED_TARGETS = ("unlabeled", "errors", "auto")
 
 
@@ -36,9 +35,7 @@ class JobService:
     # ---------- API side ----------
     def queue(self, project_id: int, body: JobCreate) -> QueueResult:
         self.projects.get_project(project_id)
-        if body.kind not in KINDS:
-            raise ApiError(400, "UNKNOWN_KIND", f"Unknown job kind '{body.kind}'. Use one of: {', '.join(KINDS)}.")
-        targets = TARGETS[body.kind]
+        targets = TARGETS[body.kind]          # JobCreate only lets known kinds and targets through
         if body.target not in targets:
             raise ApiError(400, "UNKNOWN_TARGET",
                            f"Unknown target '{body.target}' for {body.kind}. Use one of: {', '.join(targets)}.")

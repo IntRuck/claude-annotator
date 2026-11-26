@@ -115,10 +115,6 @@ def test_each_filter_picks_the_right_images(service, mixed, flt, expected):
     assert [i.file_name for i in service.list_images(1, flt).items] == expected
 
 
-def test_unknown_filter_is_400(service):
-    assert error_of(lambda: service.list_images(1, "pink")) == (400, "UNKNOWN_FILTER")
-
-
 def test_listing_a_missing_project_is_404(service):
     assert error_of(lambda: service.list_images(9, "all")) == (404, "PROJECT_NOT_FOUND")
 

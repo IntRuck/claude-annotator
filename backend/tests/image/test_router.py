@@ -47,7 +47,15 @@ def test_list_images_with_filter_and_counts(client):
 
 def test_list_defaults_to_all_and_rejects_unknown_filter(client):
     assert client.get("/api/projects/1/images").status_code == 200
-    assert client.get("/api/projects/1/images", params={"filter": "pink"}).json()["code"] == "UNKNOWN_FILTER"
+    r = client.get("/api/projects/1/images", params={"filter": "pink"})
+    assert (r.status_code, r.json()["code"]) == (400, "VALIDATION_FAILED")
+    assert [e["field"] for e in r.json()["errors"]] == ["filter"]
+
+
+def test_the_docs_list_the_filters(client):
+    params = client.get("/openapi.json").json()["paths"]["/api/projects/{project_id}/images"]["get"]["parameters"]
+    (flt,) = [p for p in params if p["name"] == "filter"]
+    assert flt["schema"]["enum"] == ["all", "unlabeled", "auto", "edited", "reviewed", "flagged", "error"]
 
 
 def test_get_one_image(client):

@@ -1,13 +1,19 @@
 from datetime import datetime
+from typing import Literal
 
 from annotator.common.schemas import ApiModel
 
+JobKind = Literal["annotate", "refine"]
+# Every target of either kind; which go with which kind is job/service.py TARGETS (refine: image / auto).
+JobTarget = Literal["image", "unlabeled", "errors", "all", "auto"]
+
 
 class JobCreate(ApiModel):
-    """What to label and with which engine. `target`: image (needs imageId) / unlabeled (+ errors) / errors / all."""
+    """What to label and with which engine. `target`: image (needs imageId) / unlabeled (+ errors) / errors / all;
+    refine takes image / auto."""
 
-    kind: str = "annotate"
-    target: str
+    kind: JobKind = "annotate"
+    target: JobTarget
     image_id: int | None = None
     engine: str = "gemini"
     options: dict = {}

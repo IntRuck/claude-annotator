@@ -1,4 +1,6 @@
 """JobService: what "Label all unlabeled", "Find objects with AI" and Stop put in (or take out of) the queue."""
+from typing import get_args
+
 import pytest
 
 from annotator.activity.service import ActivityService
@@ -6,8 +8,8 @@ from annotator.classes.schemas import ClassCreate
 from annotator.classes.service import ClassService
 from annotator.common.problem import ApiError
 from annotator.image.service import ImageService
-from annotator.job.schemas import JobCreate
-from annotator.job.service import JobService
+from annotator.job.schemas import JobCreate, JobKind, JobTarget
+from annotator.job.service import TARGETS, JobService
 from annotator.project.service import ProjectService
 from tests.fakes import (
     FakeActivityRepository,
@@ -127,13 +129,16 @@ def test_without_classes_the_ai_has_nothing_to_look_for(w):
 
 
 @pytest.mark.parametrize(("body", "expected"), [
-    (dict(target="everything"), (400, "UNKNOWN_TARGET")),
     (dict(target="unlabeled", engine="robot"), (400, "UNKNOWN_ENGINE")),
-    (dict(target="unlabeled", kind="paint"), (400, "UNKNOWN_KIND")),
     (dict(target="image"), (400, "IMAGE_REQUIRED")),
 ])
 def test_bad_requests(w, body, expected):
     assert error_of(lambda: w.jobs.queue(1, JobCreate(**body))) == expected
+
+
+def test_the_kinds_and_targets_in_the_docs_match_what_the_queue_accepts():
+    assert get_args(JobKind) == tuple(TARGETS)
+    assert set(get_args(JobTarget)) == {target for targets in TARGETS.values() for target in targets}
 
 
 def test_an_image_of_another_project_is_not_found(w):

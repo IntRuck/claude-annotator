@@ -6,7 +6,7 @@ from annotator.common.problem import ApiError
 from annotator.common.text import one_line
 from annotator.image.models import STATUSES
 from annotator.image.repository import ImageRepository
-from annotator.image.schemas import FILTERS, ImageList, ImageOut, ProjectImageSummary, SkippedFile, UploadResult
+from annotator.image.schemas import ImageFilter, ImageList, ImageOut, ProjectImageSummary, SkippedFile, UploadResult
 from annotator.image.thumbnails import IMAGE_EXTENSIONS, UnsupportedImageError, allowed_file_name, read_image
 from annotator.project.service import ProjectService
 from annotator.storage.storage_service import IMAGES_BUCKET, StorageError, StorageService
@@ -70,9 +70,7 @@ class ImageService:
         return ImageOut.model_validate(row)
 
     # ---------- read ----------
-    def list_images(self, project_id: int, image_filter: str) -> ImageList:
-        if image_filter not in FILTERS:
-            raise ApiError(400, "UNKNOWN_FILTER", f"Unknown filter '{image_filter}'. Use one of: {', '.join(FILTERS)}.")
+    def list_images(self, project_id: int, image_filter: ImageFilter) -> ImageList:
         self.projects.get_project(project_id)
         items = [ImageOut.model_validate(i) for i in self.repo.list_for_project(project_id, image_filter)]
         return ImageList(items=items, counts=self.repo.counts(project_id))
