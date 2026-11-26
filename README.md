@@ -11,6 +11,8 @@ Everything runs on your own computer:
 | **Worker** (`backend/`) | Runs the AI in the background, one image at a time |
 | **Local Supabase** | The database (projects, SKUs, boxes, statuses, AI jobs, activity log) and the photo storage |
 
+**Why is the worker separate?** The AI can take minutes per image and uses the GPU. Keeping it in its own program means the page stays fast, a crash or slow model doesn't take the API down, and waiting images stay safe in the database queue if the worker stops.
+
 You pick which AI does the labelling:
 
 | AI | What it is | Cost | Needs | Can Refine? |
