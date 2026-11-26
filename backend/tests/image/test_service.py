@@ -185,3 +185,47 @@ def test_download_original_when_storage_is_down_is_502(service, storage):
     image = service.upload(1, [upload("a.jpg")]).added[0]
     storage.fail_with = StorageError(0, "connection refused")
     assert error_of(lambda: service.download_original(image.id)) == (502, "STORAGE_UNAVAILABLE")
+
+
+# ---------- projects page and project delete ----------
+def test_summary_by_project_counts_each_projects_images(service, repo):
+    service.projects.create_project("Fridge")
+    for pid, name in ((1, "b.jpg"), (1, "a.jpg"), (1, "c.jpg"), (2, "x.jpg")):
+        repo.add(pid, file_name=name, stem=name[0], storage_path="p", thumb_path="t", width=10, height=10)
+    service.update_state(2, status="reviewed")
+    service.update_state(3, status="auto", flagged=True)
+
+    summary = service.summary_by_project()
+    one = summary[1]
+    assert (one.all, one.unlabeled, one.auto, one.reviewed, one.flagged, one.error) == (3, 1, 1, 1, 1, 0)
+    assert one.cover_image_id == 1                 # the first image added
+    assert one.last_changed_at is not None
+    assert summary[2].all == 1
+
+
+def test_summary_by_project_leaves_out_projects_without_images(service):
+    assert service.summary_by_project() == {}
+
+
+def test_file_paths_lists_every_original_and_thumbnail_of_the_project(service):
+    service.upload(1, [upload("a.jpg"), upload("b.jpg")])
+    rows = service.repo.list_for_project(1, "all")
+    assert sorted(service.file_paths(1)) == sorted([r.storage_path for r in rows] + [r.thumb_path for r in rows])
+
+
+def test_delete_files_removes_them_from_storage(service, storage):
+    service.upload(1, [upload("a.jpg")])
+    service.delete_files(service.file_paths(1))
+    assert storage.objects == {}
+
+
+def test_delete_files_sends_at_most_1000_paths_per_call(service, storage):
+    calls = []
+    storage.remove = lambda bucket, paths: calls.append((bucket, len(paths)))
+    service.delete_files([f"1/{i}.jpg" for i in range(2001)])
+    assert calls == [("images", 1000), ("images", 1000), ("images", 1)]
+
+
+def test_delete_files_with_storage_down_is_502(service, storage):
+    storage.fail_with = StorageError(0, "connection refused")
+    assert error_of(lambda: service.delete_files(["1/a.jpg"])) == (502, "STORAGE_UNAVAILABLE")

@@ -18,6 +18,12 @@ class ClassRepository:
         stmt = select(ProjectClass).where(ProjectClass.project_id == project_id).order_by(ProjectClass.class_index)
         return list(self.session.scalars(stmt))
 
+    def count_by_project(self) -> dict[int, int]:
+        """Number of classes per project; projects without classes are left out."""
+        rows = self.session.execute(
+            select(ProjectClass.project_id, func.count()).group_by(ProjectClass.project_id))
+        return {project_id: count for project_id, count in rows}
+
     def get(self, project_id: int, class_index: int) -> ProjectClass | None:
         return self.session.get(ProjectClass, (project_id, class_index))
 

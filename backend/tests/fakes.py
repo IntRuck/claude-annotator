@@ -27,10 +27,18 @@ class FakeProjectRepository:
     def get(self, project_id: int) -> Project | None:
         return self.rows.get(project_id)
 
-    def create(self, name: str) -> Project:
-        project = Project(id=len(self.rows) + 1, name=name, created_at=datetime(2026, 11, 23, tzinfo=timezone.utc))
+    def create(self, name: str, description: str = "") -> Project:
+        project = Project(id=max(self.rows, default=0) + 1, name=name, description=description, created_at=NOW,
+                          updated_at=NOW)
         self.rows[project.id] = project
         return project
+
+    def save(self, project: Project) -> Project:
+        self.rows[project.id] = project
+        return project
+
+    def delete(self, project_id: int) -> None:
+        self.rows.pop(project_id, None)
 
 
 class FakeClassRepository:
@@ -42,6 +50,12 @@ class FakeClassRepository:
 
     def get(self, project_id: int, class_index: int) -> ProjectClass | None:
         return self.rows.get((project_id, class_index))
+
+    def count_by_project(self) -> dict[int, int]:
+        counts: dict[int, int] = {}
+        for project_id, _ in self.rows:
+            counts[project_id] = counts.get(project_id, 0) + 1
+        return counts
 
     def find_by_name(self, project_id: int, name: str) -> ProjectClass | None:
         return next((c for c in self.list_for_project(project_id) if c.name.lower() == name.lower()), None)
@@ -88,6 +102,17 @@ class FakeImageRepository:
 
     def find_by_names(self, project_id: int, names: list[str]) -> list[Image]:
         return [r for r in self._of(project_id) if r.file_name in names]
+
+    def summary_by_project(self) -> dict[int, dict]:
+        summary = {}
+        for project_id in sorted({r.project_id for r in self.rows.values()}):
+            rows = self._of(project_id)
+            summary[project_id] = {**self.counts(project_id), "last_changed_at": max(r.updated_at for r in rows),
+                                   "cover_image_id": min(r.id for r in rows)}
+        return summary
+
+    def file_paths(self, project_id: int) -> list[str]:
+        return [path for r in self._of(project_id) for path in (r.storage_path, r.thumb_path)]
 
     def ids_with_status(self, project_id: int, statuses: list[str] | None) -> list[int]:
         return [r.id for r in self._of(project_id) if statuses is None or r.status in statuses]

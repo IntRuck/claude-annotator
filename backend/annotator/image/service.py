@@ -6,12 +6,13 @@ from annotator.common.problem import ApiError
 from annotator.common.text import one_line
 from annotator.image.models import STATUSES
 from annotator.image.repository import ImageRepository
-from annotator.image.schemas import FILTERS, ImageList, ImageOut, SkippedFile, UploadResult
+from annotator.image.schemas import FILTERS, ImageList, ImageOut, ProjectImageSummary, SkippedFile, UploadResult
 from annotator.image.thumbnails import IMAGE_EXTENSIONS, UnsupportedImageError, allowed_file_name, read_image
 from annotator.project.service import ProjectService
 from annotator.storage.storage_service import IMAGES_BUCKET, StorageError, StorageService
 
 SIGNED_URL_SECONDS = 3600
+REMOVE_BATCH = 1000  # paths per storage delete call
 NOT_AN_IMAGE_TYPE = f"not a supported image type ({', '.join(e.lstrip('.') for e in IMAGE_EXTENSIONS)})"
 
 
@@ -89,6 +90,21 @@ class ImageService:
             return self.storage.download(IMAGES_BUCKET, self._row(image_id).storage_path)
         except StorageError as e:
             raise ApiError(502, "STORAGE_UNAVAILABLE", f"Couldn't read image {image_id} from storage: {e}") from e
+
+    # ---------- projects page and project delete ----------
+    def summary_by_project(self) -> dict[int, ProjectImageSummary]:
+        """Image numbers per project; projects without images are left out."""
+        return {pid: ProjectImageSummary(**row) for pid, row in self.repo.summary_by_project().items()}
+
+    def file_paths(self, project_id: int) -> list[str]:
+        return self.repo.file_paths(project_id)
+
+    def delete_files(self, paths: list[str]) -> None:
+        try:
+            for start in range(0, len(paths), REMOVE_BATCH):
+                self.storage.remove(IMAGES_BUCKET, paths[start:start + REMOVE_BATCH])
+        except StorageError as e:
+            raise ApiError(502, "STORAGE_UNAVAILABLE", f"Couldn't remove photo files from storage: {e}") from e
 
     # ---------- status and flag ----------
     def update_state(self, image_id: int, *, status: str | None = None, note: str | None = None,

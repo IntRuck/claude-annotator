@@ -66,3 +66,26 @@ def test_ids_with_status_by_name(db_session, pid):
 
     assert repo.ids_with_status(pid, ["unlabeled"]) == [rows["a.jpg"].id, rows["c.jpg"].id]
     assert repo.ids_with_status(pid, None) == [rows["a.jpg"].id, rows["b.jpg"].id, rows["c.jpg"].id]
+
+
+def test_summary_by_project_counts_per_project(db_session, pid):
+    repo = ImageRepository(db_session)
+    other = ProjectRepository(db_session).create("Other").id
+    first = add(repo, pid, "b.jpg")
+    second = add(repo, pid, "a.jpg")
+    add(repo, other, "x.jpg")
+    second.status, second.flagged = "edited", True
+    repo.save(second)
+
+    summary = repo.summary_by_project()
+    assert summary[pid]["all"] == 2
+    assert (summary[pid]["unlabeled"], summary[pid]["edited"], summary[pid]["flagged"]) == (1, 1, 1)
+    assert summary[pid]["cover_image_id"] == first.id
+    assert summary[pid]["last_changed_at"] == second.updated_at
+    assert summary[other]["all"] == 1
+
+
+def test_file_paths_lists_originals_and_thumbnails(db_session, pid):
+    repo = ImageRepository(db_session)
+    add(repo, pid, "a.jpg")
+    assert sorted(repo.file_paths(pid)) == [f"{pid}/a.jpg", f"{pid}/thumbs/a.jpg"]

@@ -23,6 +23,7 @@ export default function ClassList({ classes, currentIndex, counts = {}, onPick, 
           <span className="cnt">{counts[c.index] ?? 0}</span>
         </button>
       ))}
+      <button type="button" className="class-edit" onClick={onOpenSkus}>Edit SKUs</button>
     </div>
   );
 }

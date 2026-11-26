@@ -16,6 +16,7 @@ from annotator.image.router import router as image_router
 from annotator.importer.router import router as import_router
 from annotator.job.router import router as job_router
 from annotator.label.router import router as label_router
+from annotator.overview.router import router as overview_router
 from annotator.project.router import router as project_router
 from annotator.realtime.broadcaster import RESYNC, Broadcaster
 from annotator.realtime.dependencies import get_listener_factory, get_message_builder
@@ -85,6 +86,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return {"status": "ok"}
 
     app.include_router(project_router)
+    app.include_router(overview_router)
     app.include_router(classes_router)
     app.include_router(image_router)
     app.include_router(import_router)

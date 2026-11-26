@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
-import { EmptyState, ErrorBanner, LoadingState } from '@/components/ui';
-import { useProject } from '@/features/projects';
+import { Link, useNavigate, useParams } from 'react-router-dom';
+import { EmptyState, ErrorBanner, LoadingState, Menu } from '@/components/ui';
+import { ProjectFormDialog, ProjectSwitcher, useProject } from '@/features/projects';
 import { ClassList, SkuManager, applyClassMessage, useClasses } from '@/features/classes';
 import {
   CUSTOM, ImageStrip, UploadImages, applyImageMessage, fileUrl, stepFrom, useImages, useSetFlag,
@@ -22,15 +22,23 @@ const LIVE_HANDLERS = {
   images: applyImageMessage, classes: applyClassMessage, jobs: applyJobMessage, activity: applyActivityMessage,
   worker: applyWorkerMessage,
 };
+/** [word, hover text]. Shown next to the project name: the live stream is per project. */
 const LIVE = {
-  live: ['Live', 'Changes from other tabs and the AI show up here as they happen'],
+  live: ['Live', 'Live: changes from other tabs and the AI show up here as they happen'],
   connecting: ['Connecting…', 'Connecting to live updates'],
   offline: ['Offline', 'Live updates are off; reconnecting. Changes made elsewhere show up once it is back'],
 };
 
-/** One project's workspace: classes and boxes (left), editor (middle), review and images (right), like today. */
+/** The project in the URL. Keyed by id, so switching projects starts the workspace fresh (filter, picked images,
+ * chosen image, hidden boxes) instead of carrying the last project's choices over. */
 export default function WorkspacePage() {
   const projectId = Number(useParams().projectId);
+  return <Workspace key={projectId} projectId={projectId} />;
+}
+
+/** One project's workspace: classes and boxes (left), editor (middle), review and images (right), like today. */
+function Workspace({ projectId }) {
+  const navigate = useNavigate();
   const project = useProject(projectId);
   const classes = useClasses(projectId);
   const [filter, setFilter] = useState('all');
@@ -50,6 +58,7 @@ export default function WorkspacePage() {
   const [importOpen, setImportOpen] = useState(false);
   const [healthOpen, setHealthOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
   const [introDismissed, setIntroDismissed] = useState(false);
   const [currentClass, setCurrentClass] = useState(0);
   const [chosenImageId, setChosenImageId] = useState(null);
@@ -66,7 +75,7 @@ export default function WorkspacePage() {
   // A project with no classes opens the SKU manager once (like today), unless you're importing a dataset.
   const noClassesYet = classes.isSuccess && classList.length === 0;
   const showIntro = noClassesYet && !introDismissed && !importOpen;
-  const dialogOpen = skuOpen || importOpen || healthOpen || exportOpen || showIntro;
+  const dialogOpen = skuOpen || importOpen || healthOpen || exportOpen || editOpen || showIntro;
 
   /** Unsaved changes are saved as "edited" before moving on (a conflict keeps you on the image). */
   const goTo = useCallback(async (id) => {
@@ -84,6 +93,16 @@ export default function WorkspacePage() {
   const openDialog = async (open) => {
     await editor.saveIfDirty().catch(() => {});
     open(true);
+  };
+
+  /** Back to the projects page or to another project. Unsaved changes are saved first; a conflict keeps you here. */
+  const leave = async (path) => {
+    try {
+      await editor.saveIfDirty();
+    } catch {
+      return;
+    }
+    navigate(path);
   };
 
   const approve = async () => {
@@ -148,26 +167,46 @@ export default function WorkspacePage() {
   const counts = {};
   editor.state.boxes.forEach((b) => { counts[b.cls] = (counts[b.cls] ?? 0) + 1; });
 
+  if (project.error?.code === 'PROJECT_NOT_FOUND') {
+    return (
+      <div className="workspace-gone">
+        <p>This project no longer exists.</p>
+        <Link to="/">Back to projects</Link>
+      </div>
+    );
+  }
+
   return (
     <div className="workspace">
       <header className="workspace-bar">
-        <Link to="/" className="brand">Claude Annotator</Link>
-        <h1>{project.data?.name ?? ''}</h1>
-        <EngineBar settings={engine} summary={jobs.data} notice={aiNotice} busy={queueJobs.isPending}
-                   engineStatus={engineStatus.data}
-                   onChange={(patch) => { setEngine(patch); setAiNotice(''); }}
-                   onRunAll={() => runAi('unlabeled')} onRefineAll={() => runAi('auto', 'refine')}
-                   onStop={() => stopJobs.mutate()} />
-        <PausedBanner paused={engineStatus.data?.paused} busy={resume.isPending} onResume={() => resume.mutate()} />
-        <span className={`live-status ${live}`} title={LIVE[live][1]}>{LIVE[live][0]}</span>
-        <button type="button" onClick={() => openDialog(setHealthOpen)} title="Dataset report: class counts, issues">
-          Health check
-        </button>
-        <button type="button" onClick={() => openDialog(setExportOpen)} title="Download the labels as YOLO or COCO">
-          Export
-        </button>
-        <button type="button" onClick={() => openDialog(setImportOpen)}>Import dataset</button>
-        <button type="button" onClick={() => openDialog(setSkuOpen)}>SKUs</button>
+        <div className="bar-group bar-where">
+          <button type="button" className="bar-back" onClick={() => leave('/')}>← Projects</button>
+          <h1><ProjectSwitcher project={project.data} onGo={leave} /></h1>
+          <span className={`live-status ${live}`} role="status" aria-label={LIVE[live][0]} title={LIVE[live][1]}>
+            {LIVE[live][0]}
+          </span>
+        </div>
+        <div className="bar-group bar-ai">
+          <EngineBar settings={engine} summary={jobs.data} notice={aiNotice} busy={queueJobs.isPending}
+                     engineStatus={engineStatus.data}
+                     onChange={(patch) => { setEngine(patch); setAiNotice(''); }}
+                     onRunAll={() => runAi('unlabeled')} onRefineAll={() => runAi('auto', 'refine')}
+                     onStop={() => stopJobs.mutate()} />
+          <PausedBanner paused={engineStatus.data?.paused} busy={resume.isPending} onResume={() => resume.mutate()} />
+        </div>
+        <div className="bar-group bar-tools">
+          <button type="button" onClick={() => openDialog(setHealthOpen)} title="Dataset report: class counts, issues">
+            Health check
+          </button>
+          <button type="button" onClick={() => openDialog(setExportOpen)} title="Download the labels as YOLO or COCO">
+            Export
+          </button>
+          <Menu label="More" title="Import, SKUs, project details" align="end" className="bar-more" items={[
+            { label: 'Import dataset', onSelect: () => openDialog(setImportOpen) },
+            { label: 'SKUs', onSelect: () => openDialog(setSkuOpen) },
+            { label: 'Edit project details', onSelect: () => openDialog(setEditOpen) },
+          ]}>⋯</Menu>
+        </div>
       </header>
 
       <aside className="workspace-left">
@@ -229,6 +268,7 @@ export default function WorkspacePage() {
 
       {importOpen && <ImportDataset projectId={projectId} onClose={() => setImportOpen(false)} />}
       {exportOpen && <ExportDialog projectId={projectId} onClose={() => setExportOpen(false)} />}
+      {editOpen && project.data && <ProjectFormDialog project={project.data} onClose={() => setEditOpen(false)} />}
       {healthOpen && <HealthDialog projectId={projectId} onClose={() => setHealthOpen(false)} onPickImages={showPicked} />}
       {(skuOpen || showIntro) && (
         <SkuManager projectId={projectId} intro={noClassesYet}

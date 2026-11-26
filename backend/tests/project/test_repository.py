@@ -20,6 +20,34 @@ def test_list_is_newest_first_and_get_finds_by_id(db_session):
     assert repo.get(second.id + 1000) is None
 
 
+def test_create_stores_the_description_and_starts_updated_at_at_created_at(db_session):
+    project = ProjectRepository(db_session).create("Shelf", "Store 3")
+    assert project.description == "Store 3"
+    assert project.updated_at == project.created_at
+
+
+def test_description_defaults_to_empty(db_session):
+    assert ProjectRepository(db_session).create("Shelf").description == ""
+
+
+def test_save_writes_changes_and_moves_updated_at_on(db_session):
+    repo = ProjectRepository(db_session)
+    project = repo.create("Shelf")
+    before = project.updated_at
+    project.name = "Shelf A"
+    saved = repo.save(project)
+    assert repo.get(project.id).name == "Shelf A"
+    assert saved.updated_at > before
+
+
+def test_delete_removes_the_project(db_session):
+    repo = ProjectRepository(db_session)
+    project = repo.create("Gone")
+    repo.delete(project.id)
+    db_session.expire_all()
+    assert repo.get(project.id) is None
+
+
 def test_database_refuses_a_blank_name(db_session):
     with pytest.raises(IntegrityError):
         ProjectRepository(db_session).create("   ")

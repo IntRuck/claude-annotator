@@ -1,4 +1,5 @@
 """JobLoop: what the worker process does over and over (claim -> load -> engine -> save), and its error paths."""
+import logging
 import threading
 import time
 from contextlib import contextmanager
@@ -77,6 +78,28 @@ def test_an_image_labelled_by_hand_meanwhile_never_reaches_the_engine():
 
     assert loop_for(w).run_once() is True
     assert w.engine.calls == []
+
+
+def test_a_project_deleted_while_its_image_is_with_the_engine_is_skipped_quietly(caplog):
+    """The projects page can delete a project while the worker labels one of its images. The database then removes
+    the project, image and job rows (cascade); the fakes don't cascade, so the engine clears them by hand."""
+    w = World()
+    w.upload("a.jpg")
+    w.queue()
+
+    class DeletingEngine(FakeEngine):
+        def annotate(self, *args):
+            for rows in (w.projects.repo.rows, w.image_repo.rows, w.job_repo.rows, w.class_repo.rows,
+                         w.activity_repo.rows):
+                rows.clear()
+            return super().annotate(*args)
+
+    w.engine = DeletingEngine([([CAN], set())])
+    with caplog.at_level(logging.WARNING):
+        assert loop_for(w).run_once() is True
+
+    assert [r.levelname for r in caplog.records] == ["WARNING"]      # one "job failed" line, no stack trace
+    assert w.activity_repo.rows == []                                 # nothing logged for a project that is gone
 
 
 def test_run_forever_recovers_interrupted_jobs_works_through_the_queue_and_stops_when_asked():

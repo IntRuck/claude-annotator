@@ -26,6 +26,21 @@ class ImageRepository:
         counts = row._asdict()
         return {k: counts[k] for k in ("all", "unlabeled", "auto", "edited", "reviewed", "flagged", "error")}
 
+    def summary_by_project(self) -> dict[int, dict]:
+        """Per project that has images: counts by status, flagged, the newest change, and the first image added
+        (the cover on the projects page). One query for all projects."""
+        columns = [Image.project_id, func.count().label("all"),
+                   func.count().filter(Image.flagged.is_(True)).label("flagged")]
+        columns += [func.count().filter(Image.status == s).label(s) for s in STATUSES]
+        columns += [func.max(Image.updated_at).label("last_changed_at"), func.min(Image.id).label("cover_image_id")]
+        rows = self.session.execute(select(*columns).group_by(Image.project_id))
+        return {r.project_id: {k: v for k, v in r._asdict().items() if k != "project_id"} for r in rows}
+
+    def file_paths(self, project_id: int) -> list[str]:
+        """Every original and thumbnail path of the project, for removing its files from storage."""
+        rows = self.session.execute(select(Image.storage_path, Image.thumb_path).where(Image.project_id == project_id))
+        return [path for row in rows for path in row]
+
     def ids_with_status(self, project_id: int, statuses: list[str] | None) -> list[int]:
         """Image ids by file name; all of the project's images when `statuses` is None."""
         stmt = select(Image.id).where(Image.project_id == project_id)

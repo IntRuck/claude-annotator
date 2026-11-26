@@ -67,7 +67,8 @@ class OneProjectSession:
     """Just enough of a SQLAlchemy session for ProjectRepository.get."""
 
     def get(self, model, project_id):
-        return Project(id=project_id, name="Shelf", created_at=datetime(2026, 11, 23, tzinfo=timezone.utc))
+        when = datetime(2026, 11, 23, tzinfo=timezone.utc)
+        return Project(id=project_id, name="Shelf", description="", created_at=when, updated_at=when)
 
 
 def test_the_database_session_is_released_before_streaming_starts():

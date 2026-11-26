@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiError } from '@/lib/apiClient';
 import { renderWithProviders } from '@/test/renderWithProviders';
 import { FakeEventSource } from '@/test/fakeEventSource';
-import { getProject } from '@/features/projects/api/projectsApi';
+import { getProject, listProjects, updateProject } from '@/features/projects/api/projectsApi';
 import { listClasses } from '@/features/classes/api/classesApi';
 import { listImages, setFlag } from '@/features/images/api/imagesApi';
 import { getBoxes, saveBoxes } from '@/features/editor/api/labelsApi';
@@ -16,7 +16,10 @@ import { getExportSummary } from '@/features/export/api/exportApi';
 import WorkspacePage from './WorkspacePage';
 
 vi.mock('react-konva', () => import('@/test/konvaStub'));
-vi.mock('@/features/projects/api/projectsApi', () => ({ getProject: vi.fn(), listProjects: vi.fn(), createProject: vi.fn() }));
+vi.mock('@/features/projects/api/projectsApi', () => ({
+  getProject: vi.fn(), listProjects: vi.fn(), listProjectSummaries: vi.fn(), createProject: vi.fn(), updateProject: vi.fn(),
+  deleteProject: vi.fn(),
+}));
 vi.mock('@/features/classes/api/classesApi', () => ({ listClasses: vi.fn(), addClass: vi.fn(), updateClass: vi.fn() }));
 vi.mock('@/features/images/api/imagesApi', () => ({
   listImages: vi.fn(),
@@ -50,8 +53,19 @@ const HEALTH = {
 };
 
 function renderPage() {
-  return renderWithProviders(<WorkspacePage />, { route: '/projects/4', path: '/projects/:projectId' });
+  return renderWithProviders(<WorkspacePage />, {
+    route: '/projects/4', path: '/projects/:projectId', routes: { '/': <p>Projects page</p> },
+  });
 }
+
+/** Import dataset, SKUs and Edit project details sit in the top bar's ⋯ menu. */
+async function openTool(name) {
+  await userEvent.click(await screen.findByRole('button', { name: 'More' }));
+  await userEvent.click(screen.getByRole('menuitem', { name }));
+}
+
+const PROJECTS = { 4: { id: 4, name: 'Shelf B', description: 'Store 3', createdAt: '2026-11-23T00:00:00Z' },
+                   5: { id: 5, name: 'Fridge', description: '', createdAt: '2026-11-24T00:00:00Z' } };
 
 const stageImage = () => screen.getByTestId('stage-image');
 
@@ -62,7 +76,9 @@ async function waitForImage(id) {
 
 describe('WorkspacePage', () => {
   beforeEach(() => {
-    getProject.mockReset().mockResolvedValue({ id: 4, name: 'Shelf B', createdAt: '2026-11-23T00:00:00Z' });
+    getProject.mockReset().mockImplementation((id) => Promise.resolve(PROJECTS[id]));
+    listProjects.mockReset().mockResolvedValue(Object.values(PROJECTS));
+    updateProject.mockReset();
     listClasses.mockReset().mockResolvedValue([{ index: 0, name: 'can', detectorPrompt: '', description: '' },
       { index: 1, name: 'jar', detectorPrompt: '', description: '' }]);
     listImages.mockReset().mockImplementation((_, filter) => Promise.resolve({
@@ -93,13 +109,13 @@ describe('WorkspacePage', () => {
 
   it('opens the SKU manager from the top bar', async () => {
     renderPage();
-    await userEvent.click(await screen.findByRole('button', { name: 'SKUs' }));
+    await openTool('SKUs');
     expect(screen.getByRole('dialog', { name: 'SKUs to detect' })).toBeInTheDocument();
   });
 
   it('opens the import dialog from the top bar', async () => {
     renderPage();
-    await userEvent.click(await screen.findByRole('button', { name: 'Import dataset' }));
+    await openTool('Import dataset');
     expect(screen.getByRole('dialog', { name: 'Import a dataset' })).toBeInTheDocument();
   });
 
@@ -121,9 +137,88 @@ describe('WorkspacePage', () => {
     listClasses.mockResolvedValue([]);
     renderPage();
     await screen.findByRole('dialog', { name: 'SKUs to detect' });
-    await userEvent.click(screen.getByRole('button', { name: 'Import dataset' }));
+    await openTool('Import dataset');
     expect(screen.getByRole('dialog', { name: 'Import a dataset' })).toBeInTheDocument();
     expect(screen.queryByRole('dialog', { name: 'SKUs to detect' })).not.toBeInTheDocument();
+  });
+
+  it('opens the SKU manager from under the class list', async () => {
+    renderPage();
+    await userEvent.click(await screen.findByRole('button', { name: 'Edit SKUs' }));
+    expect(screen.getByRole('dialog', { name: 'SKUs to detect' })).toBeInTheDocument();
+  });
+
+  describe('getting around', () => {
+    it('← Projects goes back to the projects page', async () => {
+      renderPage();
+      await userEvent.click(await screen.findByRole('button', { name: '← Projects' }));
+      expect(await screen.findByText('Projects page')).toBeInTheDocument();
+    });
+
+    it('← Projects saves unsaved edits first', async () => {
+      renderPage();
+      await waitForImage(1);
+      await userEvent.click(screen.getByRole('tab', { name: /^Boxes/ }));
+      await userEvent.click(screen.getByRole('button', { name: 'Delete box' }));
+      await userEvent.click(screen.getByRole('button', { name: '← Projects' }));
+      await waitFor(() => expect(saveBoxes).toHaveBeenCalledWith(1, { boxes: [], status: 'edited', expectedUpdatedAt: 'T1' }));
+      expect(await screen.findByText('Projects page')).toBeInTheDocument();
+    });
+
+    it('the project name opens the other projects, and switching starts the new one fresh', async () => {
+      renderPage();
+      await waitForImage(1);
+      await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Filter images' }), 'auto');
+      await waitForImage(2);
+
+      await userEvent.click(screen.getByRole('button', { name: 'Shelf B' }));
+      expect(screen.queryByRole('menuitem', { name: 'Shelf B' })).not.toBeInTheDocument();
+      await userEvent.click(screen.getByRole('menuitem', { name: 'Fridge' }));
+
+      expect(await screen.findByRole('heading', { name: 'Fridge' })).toBeInTheDocument();
+      expect(getProject).toHaveBeenCalledWith(5);
+      await waitFor(() => expect(screen.getByRole('combobox', { name: 'Filter images' })).toHaveValue('all'));
+    });
+
+    it('hovering the project name shows the full name (long names are cut) and its description', async () => {
+      renderPage();
+      expect(await screen.findByRole('button', { name: 'Shelf B' })).toHaveAttribute('title', 'Shelf B\nStore 3');
+    });
+
+    it('a project without a description shows just its name on hover', async () => {
+      getProject.mockResolvedValue(PROJECTS[5]);
+      renderPage();
+      expect(await screen.findByRole('button', { name: 'Fridge' })).toHaveAttribute('title', 'Fridge');
+    });
+
+    it('the project name menu also leads to all projects', async () => {
+      renderPage();
+      await userEvent.click(await screen.findByRole('button', { name: 'Shelf B' }));
+      await userEvent.click(screen.getByRole('menuitem', { name: 'All projects' }));
+      expect(await screen.findByText('Projects page')).toBeInTheDocument();
+    });
+
+    it('edits the project details from the ⋯ menu', async () => {
+      updateProject.mockResolvedValue({ ...PROJECTS[4], name: 'Shelf C' });
+      renderPage();
+      await screen.findByRole('heading', { name: 'Shelf B' });
+      await openTool('Edit project details');
+      const form = screen.getByRole('dialog', { name: 'Edit project' });
+      expect(within(form).getByLabelText(/Description/)).toHaveValue('Store 3');
+      await userEvent.clear(within(form).getByLabelText('Name'));
+      await userEvent.type(within(form).getByLabelText('Name'), 'Shelf C');
+      await userEvent.click(within(form).getByRole('button', { name: 'Save changes' }));
+      expect(updateProject).toHaveBeenCalledWith(4, { name: 'Shelf C', description: 'Store 3' });
+      expect(await screen.findByRole('heading', { name: 'Shelf C' })).toBeInTheDocument();
+    });
+
+    it('a project deleted elsewhere says so, with a way back', async () => {
+      getProject.mockRejectedValue(new ApiError({ status: 404, code: 'PROJECT_NOT_FOUND', detail: 'Project 4 is gone.' }));
+      renderPage();
+      expect(await screen.findByText('This project no longer exists.')).toBeInTheDocument();
+      await userEvent.click(screen.getByRole('link', { name: 'Back to projects' }));
+      expect(await screen.findByText('Projects page')).toBeInTheDocument();
+    });
   });
 
   it('opens the first image in the editor once the list loads', async () => {
@@ -201,12 +296,14 @@ describe('WorkspacePage', () => {
       vi.unstubAllGlobals();
     });
 
-    it('shows when it is connected', async () => {
+    it('says Connecting…, Live and Offline in words', async () => {
       renderPage();
-      expect(await screen.findByText('Connecting…')).toBeInTheDocument();
+      expect(await screen.findByRole('status', { name: 'Connecting…' })).toHaveTextContent('Connecting…');
       expect(FakeEventSource.latest().url).toBe('/api/projects/4/events');
       act(() => FakeEventSource.latest().open());
-      expect(await screen.findByText('Live')).toBeInTheDocument();
+      expect(await screen.findByRole('status', { name: 'Live' })).toHaveTextContent('Live');
+      act(() => FakeEventSource.latest().fail());
+      expect(await screen.findByRole('status', { name: 'Offline' })).toHaveTextContent('Offline');
     });
 
     it('an image labelled elsewhere changes in the strip and the counts without a refresh', async () => {

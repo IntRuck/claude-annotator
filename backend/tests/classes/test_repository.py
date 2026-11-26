@@ -70,3 +70,13 @@ def test_deleting_a_project_deletes_its_classes(db_session, ids):
     db_session.flush()
     db_session.expire_all()
     assert repo.list_for_project(ids[0]) == []
+
+
+def test_count_by_project(db_session, ids):
+    a, b = ids
+    repo = ClassRepository(db_session)
+    for n in ("can", "bottle"):
+        repo.add(a, n, "", "")
+    counts = repo.count_by_project()
+    assert counts[a] == 2
+    assert b not in counts

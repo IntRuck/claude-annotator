@@ -1,11 +1,15 @@
-import { ProjectList } from '@/features/projects';
+import { ProjectsHome } from '@/features/projects';
 import './pages.css';
 
 export default function ProjectsPage() {
   return (
-    <main className="page">
-      <h1>Claude Annotator</h1>
-      <ProjectList />
-    </main>
+    <div className="home">
+      <header className="home-bar">
+        <h1>Claude Annotator</h1>
+      </header>
+      <main className="home-main">
+        <ProjectsHome />
+      </main>
+    </div>
   );
 }

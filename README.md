@@ -98,14 +98,14 @@ Docker Desktop must be running. Then use three terminals:
 
 Open **http://localhost:5173**.
 
-- Start the API and worker from inside `backend`: that's where they find `backend/.env`.
+- The API and worker always read `backend/.env`, whichever folder you start them from. The commands above use `.venv\Scripts\python`, so run them inside `backend`.
 - Without the worker everything works except the AI; the page says "Worker offline".
 - To stop: Ctrl+C in each terminal, then `supabase stop`.
 - After pulling new code, run `docker compose run --rm flyway migrate` once in case it added tables.
 
 ## Using it
 
-1. **Projects page**: type a name and click **Create project**, then open it. Click **Claude Annotator** (top left) to come back.
+1. **Projects page**: click **New project**, give it a name (and a short description if you like), then click its row to open it. Each row shows a cover photo, how much is labelled (green = approved, orange = labelled but not approved yet), and what's waiting. Search and sort sit above the list. The **⋯** on a row lets you edit the name and description, or delete the project. Deleting removes its photos, labels and SKUs for good, so you type the project's name to confirm. In a project, **← Projects** (top left) brings you back. Click the project's name to jump straight to another project. Both save unsaved box edits first.
 2. **SKUs**: the SKU manager opens for a new project. Add each SKU:
    - **name** goes into your export
    - **detector prompt** is a short phrase Grounding DINO / YOLO-World search for ("red tin can" works much better than a SKU code)
@@ -115,7 +115,7 @@ Open **http://localhost:5173**.
 3. **Add images**: **Upload images**, or **Import dataset** to bring in an existing YOLO set. Import takes the images plus their `.txt` labels, and the class list from `classes.txt` (one SKU per line as `name | detector prompt | description`, see `classes.example.txt`) or `data.yaml`. A `_annot_state.json` from the old Claude Annotator brings its statuses and flags along.
 4. **Label, check, fix**, then **Export**.
 
-Layout: **left** = this image (classes and boxes, AI buttons, activity log), **centre** = the editor, **right** = upload, Approve / Flag, filter and thumbnails. **Top** = AI picker and batch runs, Live badge, health check, export, import, SKUs.
+Layout: **left** = this image (classes and boxes, AI buttons, activity log), **centre** = the editor, **right** = upload, Approve / Flag, filter and thumbnails. **Top**, split along the same three columns: where you are (← Projects, project name with ● Live next to it; hover the name for its full text), the AI (picker, options, batch runs), and project tools (Health check, Export, and **⋯** for Import dataset, SKUs and Edit project details). **Edit SKUs** also sits under the class list.
 
 Pick an AI in the top bar. Its options appear next to it:
 
@@ -146,7 +146,7 @@ Classes tab (left): click a class to draw with it (or press 1-9). If a box is se
 
 Display (on the editor): brightness, contrast, show / hide annotations and class names, fill boxes. These only change what you see, not the image.
 
-**Live updates**: open the project in two tabs, or let the AI run. Changes show up everywhere as they happen. The badge at the top says **Live**, **Connecting…** or **Offline**.
+**Live updates**: open the project in two tabs, or let the AI run. Changes show up everywhere as they happen. Next to the project name it says **Live**, **Connecting…** or **Offline**.
 
 ### 🚩 Flag images to check later
 For an image that looks wrong but you don't want to fix now. Click **🚩 Flag for later** on the right or press **G**, then pick a reason and add a note.

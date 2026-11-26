@@ -24,13 +24,15 @@ AI jobs: the API queues one `jobs` row per image (`job/service.py`). The worker 
 
 Health check (`health/`): `GET /api/projects/{id}/health?low=100` builds today's report on request from the database: `service.py` loads classes, images and boxes through their services (`LabelService.boxes_by_image`), `report.py` (pure) counts. No table of its own. The web shows the images of a clicked class or issue as a picked-set filter.
 
+Projects page (`overview/`): `GET /api/project-summaries` gives every project with its numbers. Images by status, flagged and cover come from one grouped query (`ImageService.summary_by_project`); SKUs come from `ClassService.count_by_project`; last changed is the later of `projects.updated_at` and the newest image change. `DELETE /api/projects/{id}` lives here, not in `project/`, because it also removes the photo files and `ImageService` already depends on `ProjectService`. It deletes the rows first (the database cascades), then the files in chunks of 1000. A storage failure after that only logs a warning. Renaming and the description are `PATCH /api/projects/{id}` in `project/` (V8 added `description`, `updated_at`).
+
 Export (`export/`): today's YOLO zip and COCO JSON, built by the API on request and downloaded directly (no worker, nothing stored): `GET /api/projects/{id}/exports/{summary|yolo|coco}?onlyReviewed=&skipFlagged=`. `pick.py` chooses the images (labelled = `label.rules.is_labelled`, shared with the health check), `yolo.py` and `coco.py` (pure) build the files; the zip goes through a temp file that is deleted after sending.
 
 ## Hard rules
 
 - Schema changes are a new Flyway file in `db/migration/` (`V<n>__snake_case.sql`), then add its `sha256sum` line to `db/migration/applied.sha256` once applied. Never edit an applied file.
 - SQLAlchemy never creates tables (`create_all` is banned).
-- Engine keys (`GEMINI_API_KEY` etc.) are read through `Settings`, never from `os.environ` directly.
+- Engine keys (`GEMINI_API_KEY` etc.) are read through `Settings`, never from `os.environ` directly. `Settings` finds `backend/.env` from its own file location (`config/settings.py` `ENV_FILE`), not from the folder the process starts in.
 
 ## Run and test
 

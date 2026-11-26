@@ -144,3 +144,11 @@ def test_ensure_indexes_adds_placeholder_classes_up_to_the_highest_index(service
 def test_ensure_indexes_picks_a_free_placeholder_name(service):
     add(service, "class_1")
     assert service.ensure_indexes(1, 1) == ["class_1_1"]
+
+
+def test_count_by_project(service, projects):
+    projects.create_project("Fridge")
+    add(service, "can")
+    add(service, "bottle")
+    add(service, "milk", project_id=2)
+    assert service.count_by_project() == {1: 2, 2: 1}

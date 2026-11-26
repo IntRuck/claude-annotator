@@ -35,6 +35,20 @@ class UploadResult(ApiModel):
     skipped: list[SkippedFile]
 
 
+class ProjectImageSummary(ApiModel):
+    """One project's images in numbers, for the projects page."""
+
+    all: int
+    unlabeled: int
+    auto: int
+    edited: int
+    reviewed: int
+    flagged: int
+    error: int
+    last_changed_at: datetime
+    cover_image_id: int
+
+
 class FlagIn(ApiModel):
     flagged: bool
     reason: str = ""

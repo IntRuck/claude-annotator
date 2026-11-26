@@ -12,6 +12,9 @@ button:hover { border-color: #c9ced6; background: var(--soft); }
 button:disabled { opacity: .45; cursor: not-allowed; }
 button.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
 button.primary:hover { filter: brightness(.95); }
+button.danger { background: var(--bad); border-color: var(--bad); color: #fff; font-weight: 600; }
+button.danger:hover { filter: brightness(.95); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent-soft); border-color: var(--accent); }
 a { color: inherit; }
 .muted { color: var(--muted); }

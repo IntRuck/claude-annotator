@@ -7,3 +7,12 @@
 .ui-modal-body.wide { width: min(1000px, 94vw); }
 .ui-modal-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
 .ui-modal-head h2 { margin: 0; font-size: 18px; flex: 1; }
+
+/* Menu: a small list of actions under its button */
+.ui-menu { position: relative; display: inline-flex; }
+.ui-menu-list { position: absolute; top: calc(100% + 4px); left: 0; z-index: 30; min-width: 190px; display: flex; flex-direction: column; padding: 4px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 8px 24px #1d212826; }
+.ui-menu-list.end { left: auto; right: 0; }
+.ui-menu-list [role="menuitem"] { border: none; border-radius: 6px; background: none; text-align: left; padding: 7px 10px; white-space: nowrap; }
+.ui-menu-list [role="menuitem"]:hover, .ui-menu-list [role="menuitem"]:focus-visible { background: var(--soft); outline: none; }
+.ui-menu-list [role="menuitem"].danger { color: var(--bad); }
+.ui-menu-list hr { border: none; border-top: 1px solid var(--line); margin: 4px 2px; }

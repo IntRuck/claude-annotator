@@ -18,7 +18,13 @@ def client():
 def test_create_project_returns_201_with_camel_case_fields(client):
     r = client.post("/api/projects", json={"name": "Shelf"})
     assert r.status_code == 201
-    assert r.json() == {"id": 1, "name": "Shelf", "createdAt": "2026-11-23T00:00:00Z"}
+    assert r.json() == {"id": 1, "name": "Shelf", "description": "", "createdAt": "2026-11-23T00:00:00Z",
+                        "updatedAt": "2026-11-23T00:00:00Z"}
+
+
+def test_create_project_takes_a_description(client):
+    r = client.post("/api/projects", json={"name": "Shelf", "description": "Store 3"})
+    assert r.json()["description"] == "Store 3"
 
 
 def test_create_project_blank_name_is_problem_400(client):
@@ -42,4 +48,27 @@ def test_list_and_get_projects(client):
 
 def test_get_missing_project_is_problem_404(client):
     r = client.get("/api/projects/9")
+    assert (r.status_code, r.json()["code"]) == (404, "PROJECT_NOT_FOUND")
+
+
+def test_patch_renames_a_project(client):
+    client.post("/api/projects", json={"name": "Shelf", "description": "Store 3"})
+    r = client.patch("/api/projects/1", json={"name": "Shelf A"})
+    assert r.status_code == 200
+    assert (r.json()["name"], r.json()["description"]) == ("Shelf A", "Store 3")
+
+
+def test_patch_changes_the_description(client):
+    client.post("/api/projects", json={"name": "Shelf"})
+    assert client.patch("/api/projects/1", json={"description": "Fridge"}).json()["description"] == "Fridge"
+
+
+def test_patch_blank_name_is_problem_400(client):
+    client.post("/api/projects", json={"name": "Shelf"})
+    r = client.patch("/api/projects/1", json={"name": " "})
+    assert (r.status_code, r.json()["code"]) == (400, "PROJECT_NAME_REQUIRED")
+
+
+def test_patch_missing_project_is_problem_404(client):
+    r = client.patch("/api/projects/9", json={"name": "Shelf"})
     assert (r.status_code, r.json()["code"]) == (404, "PROJECT_NOT_FOUND")

@@ -27,6 +27,10 @@ class ClassService:
         self.projects.get_project(project_id)
         return [ClassOut.model_validate(c) for c in self.repo.list_for_project(project_id)]
 
+    def count_by_project(self) -> dict[int, int]:
+        """SKUs per project, for the projects page (projects without SKUs are left out)."""
+        return self.repo.count_by_project()
+
     def get_class(self, project_id: int, class_index: int) -> ClassOut:
         row = self.repo.get(project_id, class_index)
         if row is None:

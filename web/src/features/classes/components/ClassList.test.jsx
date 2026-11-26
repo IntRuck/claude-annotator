@@ -26,6 +26,13 @@ describe('ClassList', () => {
     expect(screen.getByRole('button', { name: /sku_1/ })).toHaveTextContent('4');
   });
 
+  it('has an Edit SKUs button under the list', async () => {
+    const onOpenSkus = vi.fn();
+    render(<ClassList classes={classes.slice(0, 2)} currentIndex={0} onPick={() => {}} onOpenSkus={onOpenSkus} />);
+    await userEvent.click(screen.getByRole('button', { name: 'Edit SKUs' }));
+    expect(onOpenSkus).toHaveBeenCalledOnce();
+  });
+
   it('offers to add SKUs when there are none', async () => {
     const onOpenSkus = vi.fn();
     render(<ClassList classes={[]} currentIndex={0} onPick={() => {}} onOpenSkus={onOpenSkus} />);

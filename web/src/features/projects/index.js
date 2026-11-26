@@ -1,2 +1,4 @@
-export { default as ProjectList } from './components/ProjectList';
-export { useProject, useProjects } from './hooks/useProjects';
+export { default as ProjectsHome } from './components/ProjectsHome';
+export { default as ProjectFormDialog } from './components/ProjectFormDialog';
+export { default as ProjectSwitcher } from './components/ProjectSwitcher';
+export { useProject, useProjects, useProjectSummaries } from './hooks/useProjects';

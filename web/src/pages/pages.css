@@ -1,12 +1,30 @@
-.page { padding: 24px; }
-.page h1 { margin: 0 0 4px; font-size: 22px; }
+/* Projects page: same thin top bar as the workspace, content left-aligned below it */
+.home { min-height: 100vh; }
+.home-bar { display: flex; align-items: center; padding: 10px 24px; background: var(--panel); border-bottom: 1px solid var(--line); }
+.home-bar h1 { margin: 0; font-size: 15px; }
+.home-main { padding: 28px 24px 40px; }
+@media (max-width: 640px) { .home-bar, .home-main { padding-left: 16px; padding-right: 16px; } }
 
-/* Workspace: same three columns as today's app */
-.workspace { height: 100vh; display: grid; grid-template-rows: auto 1fr; grid-template-columns: 270px 1fr 250px; }
-.workspace-bar { grid-column: 1 / -1; display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: var(--panel); border-bottom: 1px solid var(--line); }
-.workspace-bar .brand { font-weight: 700; text-decoration: none; }
-.workspace-bar h1 { flex: 1; margin: 0; font-size: 15px; }
-.live-status { font-size: 12px; color: var(--muted); white-space: nowrap; }
+/* Workspace: three columns, both sides the same width. The top bar uses the same columns (subgrid), so its
+   dividers are the column borders and run straight down: where you are | the AI | project tools. */
+.workspace { height: 100vh; display: grid; grid-template-rows: auto 1fr; grid-template-columns: 270px minmax(0, 1fr) 270px; }
+.workspace-bar { grid-column: 1 / -1; display: grid; grid-template-columns: subgrid; background: var(--panel); border-bottom: 1px solid var(--line); }
+.bar-group { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; min-width: 0; padding: 8px; }
+.bar-where { flex-wrap: nowrap; border-right: 1px solid var(--line); }
+.bar-ai > .engine-bar { flex: 1 1 auto; min-width: 0; } /* wraps inside the middle column when it doesn't fit */
+.bar-tools { justify-content: flex-end; padding: 8px 10px; border-left: 1px solid var(--line); } /* 10px like the column below */
+.bar-back { flex: none; white-space: nowrap; }
+.workspace-bar h1 { margin: 0; font-size: 15px; min-width: 0; }
+.switcher { min-width: 0; max-width: 100%; }
+.switcher > button { display: flex; align-items: center; gap: 6px; min-width: 0; max-width: 100%; border-color: transparent; font-weight: 700; }
+.switcher > button:hover, .switcher > button[aria-expanded="true"] { border-color: var(--line); }
+.switcher-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.switcher-caret { color: var(--muted); font-size: 11px; }
+.switcher .ui-menu-list { max-height: 60vh; overflow: auto; font-weight: 400; }
+.bar-more > button { width: 32px; padding: 6px 0; font-size: 16px; line-height: 1; }
+.workspace-gone { padding: 48px 24px; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+.workspace-gone p { margin: 0; font-size: 15px; }
+.live-status { flex: none; font-size: 12px; color: var(--muted); white-space: nowrap; } /* the project name gives way, not this */
 .live-status::before { content: '●'; margin-right: 4px; }
 .live-status.live::before { color: #16a34a; }
 .live-status.connecting::before { color: #ca8a04; }
