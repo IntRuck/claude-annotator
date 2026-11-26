@@ -7,7 +7,11 @@ from pathlib import PurePosixPath
 from annotator.classes.service import ClassService
 from annotator.image.service import ImageService, UploadedFile
 from annotator.importer.parsers import (
-    classify, parse_annot_state, parse_classes_txt, parse_data_yaml_names, parse_yolo_label,
+    classify,
+    parse_annot_state,
+    parse_classes_txt,
+    parse_data_yaml_names,
+    parse_yolo_label,
 )
 from annotator.importer.schemas import ImportResult
 from annotator.label.service import LabelService

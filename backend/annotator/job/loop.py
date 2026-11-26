@@ -55,10 +55,10 @@ class JobLoop:
                 s.labeling.save(task, outcome)
         except LimitReached as e:
             log.warning("Job %s: usage limit: %s", job.id, e)
-            self._safely(lambda s: s.labeling.limit_reached(job, str(e)))
+            self._safely(lambda s, reason=str(e): s.labeling.limit_reached(job, reason))
         except Exception as e:
             log.warning("Job %s failed: %s", job.id, e)
-            self._safely(lambda s: s.labeling.fail(job, e))
+            self._safely(lambda s, error=e: s.labeling.fail(job, error))
         return True
 
     def _safely(self, step) -> None:

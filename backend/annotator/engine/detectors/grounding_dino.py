@@ -59,7 +59,7 @@ class GroundingDinoEngine:
         text = " . ".join(p.lower() for p in prompts) + " ."   # Grounding DINO wants lowercase phrases split by " . "
         found = self._detect(self.cache.get(("gdino", self.model), self._load), img, text)
         boxes, unknown = [], set()
-        for box, score, lab in zip(found["boxes"], found["scores"], found["labels"]):
+        for box, score, lab in zip(found["boxes"], found["scores"], found["labels"], strict=True):
             idx = match_class(lab, prompts)
             if idx is None:
                 unknown.add(lab)

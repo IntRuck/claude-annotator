@@ -1,5 +1,5 @@
 from collections.abc import Callable
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from annotator.engine.registry import ENGINES
 from annotator.worker_status.repository import WorkerStatusRepository
@@ -10,7 +10,7 @@ OFFLINE_AFTER = timedelta(seconds=45)
 
 
 def _utcnow() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 class WorkerStatusService:

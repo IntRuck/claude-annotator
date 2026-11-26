@@ -22,7 +22,6 @@ from annotator.engine.gemini.client import GeminiEngine
 from annotator.engine.ollama.client import DEFAULT_MODEL as OLLAMA_DEFAULT_MODEL
 from annotator.engine.ollama.client import OllamaEngine
 
-
 MIN_CONFIDENCE, MAX_CONFIDENCE = 0.05, 0.95
 
 

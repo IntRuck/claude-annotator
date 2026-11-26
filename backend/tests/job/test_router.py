@@ -9,8 +9,14 @@ from annotator.job.router import get_job_service
 from annotator.job.service import JobService
 from annotator.main import create_app
 from annotator.project.service import ProjectService
-from tests.fakes import (FakeActivityRepository, FakeClassRepository, FakeImageRepository, FakeJobRepository,
-                         FakeProjectRepository, FakeStorage)
+from tests.fakes import (
+    FakeActivityRepository,
+    FakeClassRepository,
+    FakeImageRepository,
+    FakeJobRepository,
+    FakeProjectRepository,
+    FakeStorage,
+)
 
 
 @pytest.fixture

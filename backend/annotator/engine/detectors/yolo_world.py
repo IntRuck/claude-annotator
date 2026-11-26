@@ -53,5 +53,6 @@ class YoloWorldEngine:
         img = Image.open(io.BytesIO(image)).convert("RGB")
         r = model.predict(img, conf=self.threshold, verbose=False, half=self.cuda())[0]
         boxes = [{"cls": int(c), "x1": xyxyn[0], "y1": xyxyn[1], "x2": xyxyn[2], "y2": xyxyn[3], "conf": float(conf)}
-                 for xyxyn, c, conf in zip(r.boxes.xyxyn.tolist(), r.boxes.cls.tolist(), r.boxes.conf.tolist())]
+                 for xyxyn, c, conf in zip(r.boxes.xyxyn.tolist(), r.boxes.cls.tolist(), r.boxes.conf.tolist(),
+                                           strict=True)]
         return nms(boxes), set()

@@ -9,7 +9,13 @@ from annotator.label.router import get_label_service
 from annotator.label.service import LabelService
 from annotator.main import create_app
 from annotator.project.service import ProjectService
-from tests.fakes import FakeClassRepository, FakeImageRepository, FakeLabelRepository, FakeProjectRepository, FakeStorage
+from tests.fakes import (
+    FakeClassRepository,
+    FakeImageRepository,
+    FakeLabelRepository,
+    FakeProjectRepository,
+    FakeStorage,
+)
 
 STAMP = "2026-11-23T00:00:00Z"
 

@@ -7,7 +7,13 @@ from annotator.health.service import HealthService
 from annotator.image.service import ImageService
 from annotator.label.service import LabelService
 from annotator.project.service import ProjectService
-from tests.fakes import FakeClassRepository, FakeImageRepository, FakeLabelRepository, FakeProjectRepository, FakeStorage
+from tests.fakes import (
+    FakeClassRepository,
+    FakeImageRepository,
+    FakeLabelRepository,
+    FakeProjectRepository,
+    FakeStorage,
+)
 
 CAN = {"cls": 0, "x1": 0.1, "y1": 0.1, "x2": 0.3, "y2": 0.3}
 

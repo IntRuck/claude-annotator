@@ -9,8 +9,14 @@ from annotator.image.service import ImageService
 from annotator.job.schemas import JobCreate
 from annotator.job.service import JobService
 from annotator.project.service import ProjectService
-from tests.fakes import (FakeActivityRepository, FakeClassRepository, FakeImageRepository, FakeJobRepository,
-                         FakeProjectRepository, FakeStorage)
+from tests.fakes import (
+    FakeActivityRepository,
+    FakeClassRepository,
+    FakeImageRepository,
+    FakeJobRepository,
+    FakeProjectRepository,
+    FakeStorage,
+)
 
 
 class World:

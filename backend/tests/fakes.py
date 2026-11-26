@@ -3,7 +3,7 @@
 Each fake follows the same contract as the real repository it replaces; the real ones are covered by the
 `db` tests against Postgres.
 """
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from types import SimpleNamespace
 
 from annotator.activity.models import ActivityEntry
@@ -14,7 +14,7 @@ from annotator.job.models import OPEN, Job
 from annotator.project.models import Project
 from annotator.worker_status.models import EnginePause, WorkerStatus
 
-NOW = datetime(2026, 11, 23, tzinfo=timezone.utc)
+NOW = datetime(2026, 11, 23, tzinfo=UTC)
 
 
 class FakeProjectRepository:

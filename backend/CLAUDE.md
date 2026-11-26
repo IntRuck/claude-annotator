@@ -32,6 +32,8 @@ Export (`export/`): today's YOLO zip and COCO JSON, built by the API on request 
 
 - Schema changes are a new Flyway file in `db/migration/` (`V<n>__snake_case.sql`), then add its `sha256sum` line to `db/migration/applied.sha256` once applied. Never edit an applied file.
 - SQLAlchemy never creates tables (`create_all` is banned).
+- Libraries: `pyproject.toml` says what we need (`fastapi>=0.115`), `requirements.lock` pins the tested version of everything installed (like the web's package-lock.json). After adding or changing a library in `pyproject.toml`, re-run `uv pip compile pyproject.toml --extra dev --universal --python-version 3.12 -o requirements.lock` (it keeps the other pins; add `--upgrade-package <name>` or `--upgrade` to move versions on), then install again and run the tests. `tests/dependencies` fails when the two disagree. The `detectors` extra isn't locked: PyTorch has to match the CUDA version.
+- Lint with Ruff (`ruff check .`, rules in `pyproject.toml`): no findings before committing. `ruff check . --fix` applies the safe fixes (import order, modern syntax).
 - Engine keys (`GEMINI_API_KEY` etc.) are read through `Settings`, never from `os.environ` directly. `Settings` finds `backend/.env` from its own file location (`config/settings.py` `ENV_FILE`), not from the folder the process starts in.
 
 ## Run and test
@@ -48,6 +50,7 @@ Mirror the package under `tests/` (e.g. `annotator/label/service.py` → `tests/
 
 .venv/Scripts/python -m pytest                  # unit + router tests
 .venv/Scripts/python -m pytest -m db            # repository tests (Docker: testcontainers + Flyway)
+.venv/Scripts/ruff check .                      # lint
 ```
 
-Setup: `python -m venv .venv` then `.venv/Scripts/python -m pip install -e ".[dev]"` (add `[detectors]` for Grounding DINO / YOLO-World).
+Setup: `python -m venv .venv` then `.venv/Scripts/python -m pip install -c requirements.lock -e ".[dev]"` (`-c` holds every library to its locked version). For Grounding DINO / YOLO-World add `.venv/Scripts/python -m pip install -c requirements.lock -e ".[detectors]"` after installing PyTorch (the shared libraries stay at their locked versions).

@@ -1,5 +1,5 @@
 """GET /api/projects/{id}/events: the SSE stream one browser tab keeps open."""
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi.testclient import TestClient
 
@@ -67,7 +67,7 @@ class OneProjectSession:
     """Just enough of a SQLAlchemy session for ProjectRepository.get."""
 
     def get(self, model, project_id):
-        when = datetime(2026, 11, 23, tzinfo=timezone.utc)
+        when = datetime(2026, 11, 23, tzinfo=UTC)
         return Project(id=project_id, name="Shelf", description="", created_at=when, updated_at=when)
 
 

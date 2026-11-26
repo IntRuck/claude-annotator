@@ -21,6 +21,8 @@ dev = [
     "pytest>=8.3",
     "httpx2>=2.16",  # Starlette's TestClient uses it (plain httpx is deprecated there)
     "testcontainers[postgres]>=4.8",
+    "packaging>=24",  # tests/dependencies reads the lock file with it
+    "ruff>=0.17",
 ]
 
 [build-system]
@@ -37,3 +39,16 @@ markers = [
     "gpu: loads a real detector model (torch / ultralytics)",
 ]
 addopts = "-ra"
+
+[tool.ruff]
+target-version = "py312"
+line-length = 120
+
+[tool.ruff.lint]
+# Ruff's defaults (E4, E7, E9, F) plus whitespace warnings, import order, likely bugs and modern syntax.
+# Long lines (E501) aren't checked: there's no formatter yet, and wrapping by hand isn't worth the noise.
+select = ["E4", "E7", "E9", "F", "W", "I", "B", "UP"]
+
+[tool.ruff.lint.flake8-bugbear]
+# FastAPI declares dependencies and uploads as default arguments; these calls are safe there.
+extend-immutable-calls = ["fastapi.Depends", "fastapi.File", "fastapi.Query"]

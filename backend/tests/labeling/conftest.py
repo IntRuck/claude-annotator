@@ -14,8 +14,16 @@ from annotator.label.service import LabelService
 from annotator.labeling.service import LabelingService
 from annotator.project.service import ProjectService
 from annotator.worker_status.service import WorkerStatusService
-from tests.fakes import (FakeActivityRepository, FakeClassRepository, FakeImageRepository, FakeJobRepository,
-                         FakeLabelRepository, FakeProjectRepository, FakeStorage, FakeWorkerStatusRepository)
+from tests.fakes import (
+    FakeActivityRepository,
+    FakeClassRepository,
+    FakeImageRepository,
+    FakeJobRepository,
+    FakeLabelRepository,
+    FakeProjectRepository,
+    FakeStorage,
+    FakeWorkerStatusRepository,
+)
 
 
 def jpeg(size=(100, 50)) -> bytes:

@@ -20,7 +20,7 @@ def class_block(classes, prompts, descs=None):
     """Class list for VLM prompts. A description (from the SKU manager) beats the short prompt."""
     descs = descs or [""] * len(classes)
     lines = []
-    for c, p, d in zip(classes, prompts, descs):
+    for c, p, d in zip(classes, prompts, descs, strict=True):
         if d:
             lines.append(f"- {c}: {d}")
         elif p and p != c.replace("_", " "):

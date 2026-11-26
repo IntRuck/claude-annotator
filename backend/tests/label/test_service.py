@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 
 import pytest
 
@@ -9,7 +9,14 @@ from annotator.image.service import ImageService
 from annotator.label.schemas import BoxIn, SaveBoxes
 from annotator.label.service import LabelService
 from annotator.project.service import ProjectService
-from tests.fakes import NOW, FakeClassRepository, FakeImageRepository, FakeLabelRepository, FakeProjectRepository, FakeStorage
+from tests.fakes import (
+    NOW,
+    FakeClassRepository,
+    FakeImageRepository,
+    FakeLabelRepository,
+    FakeProjectRepository,
+    FakeStorage,
+)
 
 
 @pytest.fixture
@@ -113,7 +120,7 @@ def test_same_moment_in_another_timezone_is_not_stale(world):
 def test_saving_a_missing_image_is_404(world):
     service, _, _ = world
     assert error_of(lambda: service.save(9, SaveBoxes(boxes=[], status="edited",
-                                                      expected_updated_at=datetime.now(timezone.utc)))) == (404, "IMAGE_NOT_FOUND")
+                                                      expected_updated_at=datetime.now(UTC)))) == (404, "IMAGE_NOT_FOUND")
 
 
 # ---------- whole project (health report) ----------

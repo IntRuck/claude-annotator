@@ -5,7 +5,12 @@ import json
 import pytest
 
 from annotator.importer.parsers import (
-    StateEntry, classify, parse_annot_state, parse_classes_txt, parse_data_yaml_names, parse_yolo_label,
+    StateEntry,
+    classify,
+    parse_annot_state,
+    parse_classes_txt,
+    parse_data_yaml_names,
+    parse_yolo_label,
 )
 
 

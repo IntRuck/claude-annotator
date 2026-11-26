@@ -7,11 +7,11 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from annotator.activity.router import router as activity_router
-from annotator.export.router import router as export_router
-from annotator.health.router import router as health_router
 from annotator.classes.router import router as classes_router
 from annotator.common.problem import install_problem_handlers
 from annotator.config.settings import Settings, get_settings
+from annotator.export.router import router as export_router
+from annotator.health.router import router as health_router
 from annotator.image.router import router as image_router
 from annotator.importer.router import router as import_router
 from annotator.job.router import router as job_router

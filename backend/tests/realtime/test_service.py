@@ -12,8 +12,16 @@ from annotator.job.service import JobService
 from annotator.project.service import ProjectService
 from annotator.realtime.service import RealtimeService
 from annotator.worker_status.service import WorkerStatusService
-from tests.fakes import (FakeActivityRepository, FakeClassRepository, FakeImageRepository, FakeJobRepository,
-                         FakeProjectRepository, FakeStorage, FakeWorkerStatusRepository, NOW)
+from tests.fakes import (
+    NOW,
+    FakeActivityRepository,
+    FakeClassRepository,
+    FakeImageRepository,
+    FakeJobRepository,
+    FakeProjectRepository,
+    FakeStorage,
+    FakeWorkerStatusRepository,
+)
 
 
 @pytest.fixture

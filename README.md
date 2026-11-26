@@ -46,10 +46,10 @@ Run these in PowerShell from the `claude-annotator` folder.
    ```
    cd backend
    python -m venv .venv
-   .venv\Scripts\python -m pip install -e ".[dev]"
+   .venv\Scripts\python -m pip install -c requirements.lock -e ".[dev]"
    copy .env.example .env
    ```
-   Open `backend/.env` and paste the key into `SUPABASE_SERVICE_ROLE_KEY=`. The other lines are already right for this computer.
+   `-c requirements.lock` installs the exact library versions the tests passed with. Open `backend/.env` and paste the key into `SUPABASE_SERVICE_ROLE_KEY=`. The other lines are already right for this computer.
 
 3. **Web app.**
    ```
@@ -80,7 +80,7 @@ Run these in PowerShell from the `claude-annotator` folder.
 
    **Grounding DINO / YOLO-World**: install PyTorch with CUDA first (pick your CUDA version at https://pytorch.org), then in `backend`:
    ```
-   .venv\Scripts\python -m pip install -e ".[detectors]"
+   .venv\Scripts\python -m pip install -c requirements.lock -e ".[detectors]"
    .venv\Scripts\python -m pip install git+https://github.com/ultralytics/CLIP.git    # YOLO-World / YOLOE
    ```
    Model weights download automatically the first time you run each one.
@@ -101,7 +101,7 @@ Open **http://localhost:5173**.
 - The API and worker always read `backend/.env`, whichever folder you start them from. The commands above use `.venv\Scripts\python`, so run them inside `backend`.
 - Without the worker everything works except the AI; the page says "Worker offline".
 - To stop: Ctrl+C in each terminal, then `supabase stop`.
-- After pulling new code, run `docker compose run --rm flyway migrate` once in case it added tables.
+- After pulling new code, run `docker compose run --rm flyway migrate` once in case it added tables, and in `backend` run `.venv\Scripts\python -m pip install -c requirements.lock -e ".[dev]"` in case it changed libraries.
 
 ## Using it
 
@@ -217,6 +217,7 @@ This version is for one person on one computer: there's no login, the API only l
 cd backend
 .venv\Scripts\python -m pytest            # unit + API tests
 .venv\Scripts\python -m pytest -m db      # database tests (Docker: a throwaway Postgres migrated by Flyway)
+.venv\Scripts\ruff check .                # lint (rules in pyproject.toml; --fix applies the safe fixes)
 cd ..\web
 npm test
 npm run lint
@@ -224,12 +225,15 @@ npm run build
 docker compose run --rm flyway validate   # migrations match what's applied
 ```
 
+**Adding a backend library:** add it to `backend/pyproject.toml`, then in `backend` re-run the command at the top of `requirements.lock` (needs [uv](https://docs.astral.sh/uv/)), install again and run the tests. A test fails if the two files disagree.
+
 How the code is organised, and its rules, are in [CLAUDE.md](CLAUDE.md), [backend/CLAUDE.md](backend/CLAUDE.md) and [web/CLAUDE.md](web/CLAUDE.md).
 
 | Folder / file | What's in it |
 |---|---|
 | `backend/annotator/` | The API and worker, one folder per feature (projects, classes, images, labels, jobs, engines, health, export, ...) |
 | `backend/db/migration/` | The database tables (Flyway SQL files) |
+| `backend/pyproject.toml`, `backend/requirements.lock` | The libraries the backend needs, and the exact versions installed (like the web's `package-lock.json`) |
 | `backend/.env.example` | Template for `backend/.env` (Supabase key, Gemini key, Claude and Ollama settings) |
 | `web/src/` | The web app, one folder per feature |
 | `supabase/config.toml` | The local Supabase stack (its own ports, 55320-55329) |

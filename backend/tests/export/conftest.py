@@ -13,7 +13,13 @@ from annotator.image.service import ImageService
 from annotator.label.service import LabelService
 from annotator.project.service import ProjectService
 from annotator.storage.storage_service import IMAGES_BUCKET
-from tests.fakes import FakeClassRepository, FakeImageRepository, FakeLabelRepository, FakeProjectRepository, FakeStorage
+from tests.fakes import (
+    FakeClassRepository,
+    FakeImageRepository,
+    FakeLabelRepository,
+    FakeProjectRepository,
+    FakeStorage,
+)
 
 CAN = {"cls": 0, "x1": 0.1, "y1": 0.1, "x2": 0.3, "y2": 0.3}
 BOTTLE = {"cls": 1, "x1": 0.5, "y1": 0.5, "x2": 0.9, "y2": 0.9}

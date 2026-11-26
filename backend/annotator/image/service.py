@@ -40,7 +40,7 @@ class ImageService:
         names = [_base_name(f.file_name) for f in files]
         taken = {i.file_name for i in self.repo.find_by_names(project_id, names)}
         added, skipped = [], []
-        for name, f in zip(names, files):
+        for name, f in zip(names, files, strict=True):
             if not allowed_file_name(name):
                 skipped.append(SkippedFile(file_name=name, reason=NOT_AN_IMAGE_TYPE))
                 continue

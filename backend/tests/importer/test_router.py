@@ -12,7 +12,13 @@ from annotator.importer.service import ImportService
 from annotator.label.service import LabelService
 from annotator.main import create_app
 from annotator.project.service import ProjectService
-from tests.fakes import FakeClassRepository, FakeImageRepository, FakeLabelRepository, FakeProjectRepository, FakeStorage
+from tests.fakes import (
+    FakeClassRepository,
+    FakeImageRepository,
+    FakeLabelRepository,
+    FakeProjectRepository,
+    FakeStorage,
+)
 
 
 def jpg():
