@@ -75,3 +75,12 @@ describe('editing', () => {
     expect(normalizeBox(box(0.6, 0.7, 0.2, 0.3, 1))).toEqual(box(0.2, 0.3, 0.6, 0.7, 1));
   });
 });
+
+describe('hitBox with outlines', () => {
+  const outlined = { cls: 0, x1: 0.1, y1: 0.1, x2: 0.5, y2: 0.5, points: [[0.1, 0.1], [0.5, 0.1], [0.3, 0.5]] };
+
+  it('clicking the empty corner of an outlined object\'s box misses it', () => {
+    expect(hitBox([outlined], [0.12, 0.45], {})).toBe(-1);
+    expect(hitBox([outlined], [0.3, 0.2], {})).toBe(0);
+  });
+});

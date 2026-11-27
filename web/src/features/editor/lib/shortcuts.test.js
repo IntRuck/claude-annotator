@@ -8,7 +8,7 @@ describe('commandFor (today\'s keyboard shortcuts)', () => {
     ['a', 'prev'], ['ArrowLeft', 'prev'], ['d', 'next'], ['ArrowRight', 'next'],
     ['r', 'approve'], ['g', 'flag'], ['s', 'save'], ['b', 'boxTool'], ['v', 'panTool'],
     ['h', 'solo'], ['l', 'names'], ['f', 'fit'], ['Delete', 'delete'], ['Backspace', 'delete'],
-    ['Escape', 'deselect'], [' ', 'panHold'], ['D', 'next'],
+    ['Escape', 'deselect'], [' ', 'panHold'], ['D', 'next'], ['o', 'outlineTool'], ['Enter', 'closeOutline'],
   ])('%s -> %s', (k, command) => {
     expect(commandFor(key(k))).toBe(command);
   });

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { endDrag, moveDrag, startDrag } from './interaction';
+import { doubleClick, endDrag, moveDrag, startDrag } from './interaction';
+import { withOutline } from './outline';
 
 // Image 200x100 drawn at scale 1 from the stage origin: image fraction (x, y) = stage (200x, 100y).
 const ctx = (extra = {}) => ({
@@ -57,5 +58,60 @@ describe('pointer interaction (same modes as today: pan, resize, move, new box)'
     expect(start.drag.mode).toBe('pan');
     expect(moveDrag(start.drag, c, [90, 50]).view).toEqual({ scale: 1, ox: 30, oy: 20 });
     expect(endDrag(start.drag, c)).toEqual([]);
+  });
+});
+
+describe('editing outlines', () => {
+  // Dots at stage (20,10), (100,10), (60,50); its box is stage (20,10)-(100,50).
+  const TRIANGLE = [[0.1, 0.1], [0.5, 0.1], [0.3, 0.5]];
+  const outlined = withOutline({ cls: 0, source: 'ai' }, TRIANGLE);
+  const octx = (extra = {}) => ctx({ boxes: [outlined], ...extra });
+
+  it('dragging a dot of the selected outline moves only that dot', () => {
+    const c = octx({ selected: 0 });
+    const start = startDrag(c, [60, 50], 0);
+    expect(start.drag).toMatchObject({ mode: 'dot', index: 0, dot: 2 });
+    const moved = moveDrag(start.drag, c, [60, 80]);
+    expect(moved.actions).toEqual([{ type: 'preview', index: 0, box: withOutline(outlined, [[0.1, 0.1], [0.5, 0.1], [0.3, 0.8]]) }]);
+    expect(endDrag(moved.drag, c)).toEqual([{ type: 'commit' }]);
+  });
+
+  it('pressing just outside a line of the selected outline keeps it selected, so a double-click can add a dot', () => {
+    const start = startDrag(octx({ selected: 0 }), [60, 6], 0); // 4 px above the top line, outside the triangle
+    expect(start.drag.mode).toBe('move');
+    expect(start.actions).toEqual([]);
+  });
+
+  it('an outlined object has no corner handles to resize', () => {
+    expect(startDrag(octx({ selected: 0 }), [100, 50], 0).drag.mode).toBe('new'); // its box corner, outside the outline
+  });
+
+  it('moving an outlined object moves its dots', () => {
+    const c = octx({ selected: 0 });
+    const start = startDrag(c, [60, 25], 0);
+    expect(start.drag.mode).toBe('move');
+    const { box } = moveDrag(start.drag, c, [80, 35]).actions[0];
+    expect(box.points).toEqual([[expect.closeTo(0.2), expect.closeTo(0.2)], [expect.closeTo(0.6), expect.closeTo(0.2)],
+      [expect.closeTo(0.4), expect.closeTo(0.6)]]);
+  });
+
+  it('double-click on a line adds a dot there', () => {
+    expect(doubleClick(octx({ selected: 0 }), [60, 10])).toEqual([
+      { type: 'update', index: 0, box: withOutline(outlined, [[0.1, 0.1], [0.3, 0.1], [0.5, 0.1], [0.3, 0.5]]) },
+    ]);
+  });
+
+  it('double-click on a dot removes it but never below 3', () => {
+    const square = withOutline({ cls: 0 }, [[0.1, 0.1], [0.5, 0.1], [0.5, 0.5], [0.1, 0.5]]);
+    expect(doubleClick(ctx({ boxes: [square], selected: 0 }), [100, 50])).toEqual([
+      { type: 'update', index: 0, box: withOutline(square, [[0.1, 0.1], [0.5, 0.1], [0.1, 0.5]]) },
+    ]);
+    expect(doubleClick(octx({ selected: 0 }), [60, 50])).toEqual([]);
+  });
+
+  it('double-click does nothing in the pan tool or on an unselected object', () => {
+    expect(doubleClick(octx({ selected: 0, tool: 'pan' }), [60, 10])).toEqual([]);
+    expect(doubleClick(octx(), [60, 10])).toEqual([]);
+    expect(doubleClick(ctx({ selected: 0 }), [60, 10])).toEqual([]); // a plain box
   });
 });

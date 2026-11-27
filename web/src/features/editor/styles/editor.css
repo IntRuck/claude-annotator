@@ -24,6 +24,7 @@
 .box-list li { display: flex; align-items: center; gap: 6px; padding: 4px 6px; border-radius: 8px; }
 .box-list li.selected { background: var(--accent-soft); }
 .box-list select { flex: 1; min-width: 0; padding: 3px 6px; font-size: var(--text-sm); }
+.box-list .outline-mark { color: var(--muted); font-size: var(--text-sm); }
 .ghost { border-color: transparent; background: transparent; padding: 2px 7px; }
 
 /* Review panel */

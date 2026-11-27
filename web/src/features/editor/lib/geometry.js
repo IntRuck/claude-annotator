@@ -26,13 +26,27 @@ export function zoomAt(view, k, [cx, cy]) {
   return { scale: view.scale * k, ox: cx - (cx - view.ox) * k, oy: cy - (cy - view.oy) * k };
 }
 
-/** Index of the box under an image point: the selected box first, else the smallest. -1 if none. */
+/** Is an image point inside an outline ([[x, y], ...])? Ray casting: count the lines a ray to the right crosses. */
+export function insideOutline(points, [nx, ny]) {
+  let inside = false;
+  points.forEach(([ax, ay], i) => {
+    const [bx, by] = points[(i + 1) % points.length];
+    if ((ay > ny) !== (by > ny) && nx < ax + ((ny - ay) * (bx - ax)) / (by - ay)) inside = !inside;
+  });
+  return inside;
+}
+
+/**
+ * Index of the box under an image point: the selected box first, else the smallest. -1 if none.
+ * An outlined object is hit only inside its outline (its box size still decides "smallest").
+ */
 export function hitBox(boxes, [nx, ny], { selected = -1, hidden = new Set(), solo = false } = {}) {
   let best = -1;
   let bestArea = Infinity;
   boxes.forEach((b, i) => {
     if (hidden.has(i) || (solo && selected >= 0 && i !== selected)) return;
     if (nx < b.x1 || nx > b.x2 || ny < b.y1 || ny > b.y2) return;
+    if (b.points && !insideOutline(b.points, [nx, ny])) return;
     const area = i === selected ? -1 : (b.x2 - b.x1) * (b.y2 - b.y1);
     if (area < bestArea) {
       best = i;

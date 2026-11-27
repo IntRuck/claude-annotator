@@ -7,6 +7,7 @@ const FIELDS = new Set(['INPUT', 'SELECT', 'TEXTAREA']);
 const PLAIN = {
   Delete: 'delete', Backspace: 'delete', r: 'approve', g: 'flag', d: 'next', ArrowRight: 'next',
   a: 'prev', ArrowLeft: 'prev', b: 'boxTool', v: 'panTool', h: 'solo', f: 'fit', l: 'names', Escape: 'deselect',
+  o: 'outlineTool', Enter: 'closeOutline',
 };
 
 export function commandFor(event, { dialogOpen = false } = {}) {

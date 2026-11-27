@@ -1,5 +1,5 @@
 import { useEffect, useEffectEvent, useRef, useState } from 'react';
-import { Group, Layer, Rect, Stage, Text } from 'react-konva';
+import { Group, Layer, Line, Rect, Stage, Text } from 'react-konva';
 import { classColor } from '@/features/classes';
 import { fitView, toStage, zoomAt } from '../lib/geometry';
 import '../styles/editor.css';
@@ -12,12 +12,13 @@ function alpha(color, a) {
 }
 
 /**
- * Draws the image (an <img>, so brightness/contrast only touch the photo) and the boxes on a Konva stage.
- * Pointer events are reported as stage points; the editing logic lives in lib/interaction.js.
+ * Draws the image (an <img>, so brightness/contrast only touch the photo) and the boxes on a Konva stage. An
+ * outlined object is drawn as its outline (no box), and `outlineDraft` ({ points, hover }) is the outline being drawn.
+ * Pointer events are reported as stage points; the editing logic lives in lib/interaction.js and lib/outlineTool.js.
  */
 export default function EditorCanvas({
-  imageUrl, img, boxes, classes, selected, hidden, solo, display, view, draft, fitToken = 0,
-  onView, onPointerDown, onPointerMove, onPointerUp,
+  imageUrl, img, boxes, classes, selected, hidden, solo, display, view, draft, outlineDraft = null, fitToken = 0,
+  onView, onPointerDown, onPointerMove, onPointerUp, onHover = () => {}, onDoubleClick = () => {},
 }) {
   const wrap = useRef(null);
   const [size, setSize] = useState({ w: 800, h: 600 });
@@ -79,13 +80,15 @@ export default function EditorCanvas({
     setDragging(true);
   };
 
+  const stagePoints = (points) => points.map((p) => toStage(view, img, p));
   const nameOf = (cls) => classes.find((c) => c.index === cls)?.name ?? `ID ${cls}`;
   const visible = display.showAnnotations
     ? boxes.map((b, i) => ({ b, i })).filter(({ i }) => !hidden.has(i) && !(solo && selected >= 0 && i !== selected))
     : [];
 
   return (
-    <div className="editor-canvas" ref={wrap} onMouseDown={down} onContextMenu={(e) => e.preventDefault()}>
+    <div className="editor-canvas" ref={wrap} onMouseDown={down} onContextMenu={(e) => e.preventDefault()}
+         onMouseMove={(e) => onHover(pointOf(e))} onDoubleClick={(e) => onDoubleClick(pointOf(e))}>
       <img data-testid="stage-image" src={imageUrl} alt="" draggable={false} className="stage-photo"
            style={{
              width: img.iw, height: img.ih,
@@ -99,20 +102,24 @@ export default function EditorCanvas({
             const [x2, y2] = toStage(view, img, [b.x2, b.y2]);
             const color = classColor(b.cls);
             const isSelected = i === selected;
+            const stroke = { stroke: color, strokeWidth: isSelected ? 3.6 : 2 };
+            const fill = isSelected || display.fillBoxes ? alpha(color, isSelected ? 0.22 : 0.12) : undefined;
+            const dots = b.points ? stagePoints(b.points) : null;
+            const handles = dots ?? [[x1, y1], [x2, y1], [x1, y2], [x2, y2]];
             return (
               // Box position is its identity while editing.
               <Group key={i}>
-                <Rect name="box" x={x1} y={y1} width={x2 - x1} height={y2 - y1} stroke={color}
-                      strokeWidth={isSelected ? 3.6 : 2}
-                      fill={isSelected || display.fillBoxes ? alpha(color, isSelected ? 0.22 : 0.12) : undefined} />
+                {dots
+                  ? <Line name="outline" points={dots.flat()} closed {...stroke} fill={fill} />
+                  : <Rect name="box" x={x1} y={y1} width={x2 - x1} height={y2 - y1} {...stroke} fill={fill} />}
                 {display.showNames && (
                   <Group>
                     <Rect x={x1} y={y1 - 16} width={nameOf(b.cls).length * 6.5 + 8} height={16} fill={color} />
                     <Text x={x1 + 4} y={y1 - 13} text={nameOf(b.cls)} fontSize={11} fontStyle="600" fill="#fff" />
                   </Group>
                 )}
-                {isSelected && [[x1, y1], [x2, y1], [x1, y2], [x2, y2]].map(([hx, hy]) => (
-                  <Rect key={`${hx},${hy}`} name="handle" x={hx - HANDLE} y={hy - HANDLE} width={HANDLE * 2} height={HANDLE * 2}
+                {isSelected && handles.map(([hx, hy], h) => (
+                  <Rect key={h} name="handle" x={hx - HANDLE} y={hy - HANDLE} width={HANDLE * 2} height={HANDLE * 2}
                         fill="#fff" stroke={color} strokeWidth={1} />
                 ))}
               </Group>
@@ -122,6 +129,22 @@ export default function EditorCanvas({
             const [x1, y1] = toStage(view, img, draft.a);
             const [x2, y2] = toStage(view, img, draft.b);
             return <Rect name="draft" x={x1} y={y1} width={x2 - x1} height={y2 - y1} stroke="#fff" dash={[6, 4]} strokeWidth={2} />;
+          })()}
+          {outlineDraft?.points.length > 0 && (() => {
+            const dots = stagePoints(outlineDraft.points);
+            return (
+              <Group>
+                <Line name="draft-outline" points={dots.flat()} stroke="#fff" strokeWidth={2} />
+                {outlineDraft.hover && (
+                  <Line name="draft-next" points={[...dots.at(-1), ...outlineDraft.hover]} stroke="#fff" dash={[6, 4]} strokeWidth={1.5} />
+                )}
+                {dots.map(([dx, dy], d) => {
+                  const size = d === 0 ? HANDLE + 2 : HANDLE; // the first dot is bigger: click it to close
+                  return <Rect key={d} name="draft-dot" x={dx - size} y={dy - size} width={size * 2} height={size * 2}
+                               fill="#fff" stroke="#000" strokeWidth={1} />;
+                })}
+              </Group>
+            );
           })()}
         </Layer>
       </Stage>

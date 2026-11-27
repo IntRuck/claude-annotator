@@ -36,4 +36,16 @@ describe('BoxPanel (the Boxes tab)', () => {
     renderPanel({ boxes: [], selected: -1, hidden: new Set() });
     expect(screen.getByText(/Drag on the image to draw one/)).toBeInTheDocument();
   });
+
+  it('an outlined box shows the outline mark and Remove outline; a plain box shows neither', async () => {
+    const onRemoveOutline = vi.fn();
+    const outlined = { ...boxes[0], points: [[0, 0], [0.5, 0], [0.25, 0.5]] };
+    renderPanel({ boxes: [outlined, boxes[1]], onRemoveOutline });
+    const rows = screen.getAllByRole('listitem');
+    expect(within(rows[0]).getByTitle('Has an outline')).toBeInTheDocument();
+    await userEvent.click(within(rows[0]).getByRole('button', { name: 'Remove outline' }));
+    expect(onRemoveOutline).toHaveBeenCalledWith(0);
+    expect(within(rows[1]).queryByTitle('Has an outline')).not.toBeInTheDocument();
+    expect(within(rows[1]).queryByRole('button', { name: 'Remove outline' })).not.toBeInTheDocument();
+  });
 });

@@ -32,6 +32,9 @@ export function editorReducer(state, action) {
       if (!current || current.cls === action.cls) return state;
       return change(state, state.boxes.map((b, i) => (i === state.selected ? { ...b, cls: action.cls, source: 'human' } : b)));
     }
+    case 'update':
+      // One object replaced as one undo step (outline drawn, dot added or removed, outline removed).
+      return change(state, state.boxes.map((b, i) => (i === action.index ? { ...action.box, source: 'human' } : b)));
     case 'remove':
       if (state.selected < 0) return state;
       return change(state, state.boxes.filter((_, i) => i !== state.selected), { selected: -1 });

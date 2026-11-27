@@ -1,7 +1,8 @@
 import { useEffect, useEffectEvent, useRef, useState } from 'react';
 import { ErrorBanner } from '@/components/ui';
 import { fitView, zoomAt } from '../lib/geometry';
-import { endDrag, moveDrag, startDrag } from '../lib/interaction';
+import { doubleClick, endDrag, moveDrag, startDrag } from '../lib/interaction';
+import { closeDraft, outlineDown, removeLastDot } from '../lib/outlineTool';
 import { commandFor } from '../lib/shortcuts';
 import EditorCanvas from './EditorCanvas';
 import '../styles/editor.css';
@@ -9,7 +10,9 @@ import '../styles/editor.css';
 const DEFAULT_DISPLAY = { brightness: 1, contrast: 1, showAnnotations: true, showNames: true, fillBoxes: false };
 const KEYS = [
   ['A / D', 'Previous / next image'], ['R', 'Approve and go to next'], ['G', '🚩 Flag / unflag'], ['S', 'Save'],
-  ['B / V', 'Box tool / pan tool'], ['Space (hold)', 'Pan while held'], ['1–9', 'Pick class (and change selected box)'],
+  ['B / V', 'Box tool / pan tool'], ['O', 'Outline tool: click dots, Enter or the first dot closes'],
+  ['Backspace (drawing)', 'Remove the last dot'], ['Double-click', 'Add a dot on a line / remove a dot'],
+  ['Space (hold)', 'Pan while held'], ['1–9', 'Pick class (and change selected box)'],
   ['Del', 'Delete selected box'], ['Ctrl+Z / Y', 'Undo / redo'], ['H', 'Show only selected box'],
   ['L', 'Show / hide class names'], ['F', 'Fit image'], ['Wheel / right-drag', 'Zoom / pan'], ['Esc', 'Deselect, close popups'],
 ];
@@ -31,6 +34,8 @@ export default function Editor({
   const [pop, setPop] = useState(null);
   const [fitToken, setFitToken] = useState(0);
   const [draft, setDraft] = useState(null);
+  const [outline, setOutline] = useState(null); // dots of the outline being drawn (Outline tool), or null
+  const [hover, setHover] = useState(null);
   const drag = useRef(null);
 
   const ctx = {
@@ -41,6 +46,13 @@ export default function Editor({
 
   const onPointerDown = (point, button) => {
     setPop(null);
+    if (tool === 'outline') {
+      const down = outlineDown(ctx, outline, point, button);
+      drag.current = down.drag;
+      setOutline(down.draft);
+      run(down.actions);
+      return;
+    }
     const started = startDrag(ctx, point, button);
     drag.current = started.drag;
     run(started.actions);
@@ -60,21 +72,39 @@ export default function Editor({
     setDraft(null);
   };
 
+  const chooseTool = (next) => {
+    if (next !== tool) setOutline(null);
+    setTool(next);
+  };
+  const closeOutline = () => {
+    const actions = closeDraft(outline, ctx);
+    if (!actions.length) return;
+    run(actions);
+    setOutline(null);
+  };
+
+  // While an outline is being drawn, Backspace / Ctrl+Z take off its last dot and Esc drops it.
   const commands = {
-    undo: () => dispatch({ type: 'undo' }),
+    undo: () => (outline ? setOutline(removeLastDot(outline)) : dispatch({ type: 'undo' })),
     redo: () => dispatch({ type: 'redo' }),
-    delete: () => dispatch({ type: 'remove' }),
+    delete: () => (outline ? setOutline(removeLastDot(outline)) : dispatch({ type: 'remove' })),
     save: () => editor.save('edited').catch(() => {}),
     approve: onApprove,
     flag: onToggleFlag,
     next: () => onStep(1),
     prev: () => onStep(-1),
-    boxTool: () => setTool('box'),
-    panTool: () => setTool('pan'),
+    boxTool: () => chooseTool('box'),
+    panTool: () => chooseTool('pan'),
+    outlineTool: () => chooseTool('outline'),
+    closeOutline,
     solo: () => setSolo(!solo),
     names: () => setDisplay((d) => ({ ...d, showNames: !d.showNames })),
     fit: () => setFitToken((t) => t + 1),
-    deselect: () => { dispatch({ type: 'select', index: -1 }); setPop(null); },
+    deselect: () => {
+      if (outline) { setOutline(null); return; }
+      dispatch({ type: 'select', index: -1 });
+      setPop(null);
+    },
   };
 
   // Keyboard shortcuts (today's keys).
@@ -88,6 +118,10 @@ export default function Editor({
       return;
     }
     if (['undo', 'redo', 'save'].includes(cmd)) e.preventDefault();
+    if (cmd === 'closeOutline') {
+      if (!outline) return; // Enter keeps pressing a focused button when no outline is being drawn
+      e.preventDefault();
+    }
     commands[cmd]();
   });
   useEffect(() => {
@@ -114,7 +148,9 @@ export default function Editor({
     <div className={`editor${tool === 'pan' || spaceHeld ? ' panning' : ''}`}>
       <EditorCanvas imageUrl={imageUrl} img={img} boxes={state.boxes} classes={classes} selected={state.selected}
                     hidden={hidden} solo={solo} display={display} view={view} draft={draft} fitToken={fitToken}
-                    onView={setView} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} />
+                    outlineDraft={outline ? { points: outline, hover } : null}
+                    onView={setView} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp}
+                    onHover={(p) => { if (outline) setHover(p); }} onDoubleClick={(p) => run(doubleClick(ctx, p))} />
 
       {image.flagged && <div className="float flag-banner">🚩 Flagged{image.flagReason ? `: ${image.flagReason}` : ''}</div>}
       {editor.conflict && (
@@ -127,6 +163,8 @@ export default function Editor({
 
       <div className="float rail">
         <button type="button" title="Box tool: drag to draw (B)" aria-pressed={tool === 'box'} onClick={commands.boxTool}>▭</button>
+        <button type="button" title="Outline tool: click round the object, Enter to close (O)" aria-pressed={tool === 'outline'}
+                onClick={commands.outlineTool}>⬠</button>
         <button type="button" title="Pan tool (V, or hold Space)" aria-pressed={tool === 'pan'} onClick={commands.panTool}>✋</button>
         <button type="button" title="Undo (Ctrl+Z)" onClick={commands.undo}>↶</button>
         <button type="button" title="Redo (Ctrl+Y)" onClick={commands.redo}>↷</button>

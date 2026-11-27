@@ -70,3 +70,20 @@ describe('editorReducer', () => {
     expect(s.boxes).toEqual([b(0)]);
   });
 });
+
+describe('outlines in the editor state', () => {
+  const outlined = { ...b(0), points: [[0.1, 0.1], [0.3, 0.1], [0.2, 0.3]] };
+
+  it('update replaces one object in one undo step and marks it human', () => {
+    let s = run([{ type: 'load', boxes: [b(0), { ...b(1, 0.5), source: 'ai' }] }, { type: 'select', index: 1 }]);
+    s = editorReducer(s, { type: 'update', index: 1, box: { ...outlined, cls: 1, source: 'ai' } });
+    expect(s.boxes[1]).toEqual({ ...outlined, cls: 1, source: 'human' });
+    expect(s).toMatchObject({ selected: 1, dirty: true });
+    expect(editorReducer(s, { type: 'undo' }).boxes[1]).toEqual({ ...b(1, 0.5), source: 'ai' });
+  });
+
+  it('setClass keeps the outline', () => {
+    const s = run([{ type: 'load', boxes: [outlined] }, { type: 'select', index: 0 }, { type: 'setClass', cls: 3 }]);
+    expect(s.boxes[0]).toEqual({ ...outlined, cls: 3 });
+  });
+});

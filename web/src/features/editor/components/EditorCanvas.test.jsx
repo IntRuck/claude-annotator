@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import EditorCanvas from './EditorCanvas';
 
@@ -47,5 +47,45 @@ describe('EditorCanvas', () => {
   it('shows the box being drawn as a dashed preview', () => {
     renderCanvas({ draft: { a: [0.1, 0.1], b: [0.3, 0.3] } });
     expect(screen.getByTestId('draft')).toBeInTheDocument();
+  });
+
+  describe('outlines', () => {
+    // View scale 1 on a 200x100 image: dot (x, y) is drawn at stage (200x, 100y).
+    const outlined = { cls: 0, x1: 0.1, y1: 0.1, x2: 0.5, y2: 0.5, points: [[0.1, 0.1], [0.5, 0.1], [0.3, 0.5]] };
+
+    it('draws an outlined object as its outline, not its box', () => {
+      renderCanvas({ boxes: [outlined, boxes[1]] });
+      const outline = screen.getByTestId('outline');
+      expect(outline).toHaveAttribute('data-points', '20,10,100,10,60,50');
+      expect(outline).toHaveAttribute('data-closed', 'true');
+      expect(outline).toHaveAttribute('data-stroke', 'hsl(0 80% 50%)');
+      expect(screen.getAllByTestId('box')).toHaveLength(1); // only the plain box
+      expect(screen.getByText('can')).toBeInTheDocument();
+    });
+
+    it('a selected outline shows a handle on every dot', () => {
+      renderCanvas({ boxes: [outlined], selected: 0 });
+      expect(screen.getAllByTestId('handle')).toHaveLength(3);
+    });
+
+    it('draws the outline in progress with a dashed line to the pointer', () => {
+      renderCanvas({ outlineDraft: { points: [[0.1, 0.1], [0.5, 0.1]], hover: [80, 40] } });
+      expect(screen.getByTestId('draft-outline')).toHaveAttribute('data-points', '20,10,100,10');
+      expect(screen.getByTestId('draft-outline')).toHaveAttribute('data-closed', 'false');
+      expect(screen.getByTestId('draft-next')).toHaveAttribute('data-points', '100,10,80,40');
+      expect(screen.getByTestId('draft-next')).toHaveAttribute('data-dash', 'yes');
+      expect(screen.getAllByTestId('draft-dot')).toHaveLength(2);
+    });
+
+    it('reports hover and double-click as stage points', () => {
+      const onHover = vi.fn();
+      const onDoubleClick = vi.fn();
+      const { container } = renderCanvas({ onHover, onDoubleClick });
+      const wrap = container.querySelector('.editor-canvas');
+      fireEvent.mouseMove(wrap, { clientX: 30, clientY: 40 });
+      fireEvent.doubleClick(wrap, { clientX: 5, clientY: 6 });
+      expect(onHover).toHaveBeenCalledWith([30, 40]);
+      expect(onDoubleClick).toHaveBeenCalledWith([5, 6]);
+    });
   });
 });
