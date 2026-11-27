@@ -46,7 +46,7 @@ def test_put_boxes_saves_and_returns_the_image_and_boxes(client):
     assert r.status_code == 200
     out = r.json()
     assert (out["image"]["status"], out["image"]["boxCount"]) == ("reviewed", 1)
-    assert out["boxes"] == [{"cls": 0, "x1": 0.1, "y1": 0.1, "x2": 0.5, "y2": 0.5, "source": "human", "conf": None}]
+    assert out["boxes"] == [{"cls": 0, "x1": 0.1, "y1": 0.1, "x2": 0.5, "y2": 0.5, "source": "human", "conf": None, "points": None}]
 
 
 def test_put_with_an_old_version_is_problem_409(client):
@@ -71,3 +71,21 @@ def test_flag_and_unflag(client):
     assert (r.json()["flagged"], r.json()["flagReason"], r.json()["flagNote"]) == (True, "unsure", "left can")
     r = client.put("/api/images/1/flag", json={"flagged": False})
     assert (r.json()["flagged"], r.json()["flagReason"]) == (False, "")
+
+
+def test_put_and_get_round_trip_an_outline(client):
+    outline = {"cls": 0, "x1": 0, "y1": 0, "x2": 1, "y2": 1, "points": [[0.2, 0.1], [0.6, 0.3], [0.3, 0.7]]}
+    plain = {"cls": 0, "x1": 0.1, "y1": 0.1, "x2": 0.5, "y2": 0.5}
+    r = client.put("/api/images/1/boxes", json={"boxes": [outline, plain], "status": "edited", "expectedUpdatedAt": STAMP})
+    assert r.status_code == 200
+    boxes = client.get("/api/images/1/boxes").json()["boxes"]
+    assert [b["points"] for b in boxes] == [[[0.2, 0.1], [0.6, 0.3], [0.3, 0.7]], None]
+    assert (boxes[0]["x1"], boxes[0]["y2"]) == (0.2, 0.7)
+
+
+def test_more_than_1000_dots_is_validation_failed(client):
+    dots = [[0.1 + i * 0.0001, 0.2 + (i % 2) * 0.1] for i in range(1001)]
+    body = {"boxes": [{"cls": 0, "x1": 0, "y1": 0, "x2": 1, "y2": 1, "points": dots}], "status": "edited",
+            "expectedUpdatedAt": STAMP}
+    r = client.put("/api/images/1/boxes", json=body)
+    assert (r.status_code, r.json()["code"]) == (400, "VALIDATION_FAILED")

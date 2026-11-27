@@ -5,10 +5,14 @@ from pydantic import AliasChoices, Field
 
 from annotator.common.schemas import ApiModel
 from annotator.image.schemas import ImageOut
+from annotator.label.rules import MAX_DOTS
+
+Dot = tuple[float, float]
 
 
 class BoxIn(ApiModel):
-    """A box from the editor: class index and corners as fractions of the image (0-1)."""
+    """A box from the editor: class index and corners as fractions of the image (0-1). `points` is its outline
+    ([x, y] dots, 0-1); when given, the saved corners are worked out from it."""
 
     cls: int = Field(ge=0)
     x1: float
@@ -17,6 +21,7 @@ class BoxIn(ApiModel):
     y2: float
     source: str = "human"  # boxes the editor didn't change keep where they came from (ai / import)
     conf: float | None = None
+    points: list[Dot] | None = Field(default=None, max_length=MAX_DOTS)
 
 
 class BoxOut(ApiModel):
@@ -27,6 +32,7 @@ class BoxOut(ApiModel):
     y2: float
     source: str
     conf: float | None = None
+    points: list[Dot] | None = None  # the outline, or null for a plain box
 
 
 class ImageBoxes(ApiModel):

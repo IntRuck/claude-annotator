@@ -41,9 +41,15 @@ class LabelService:
         updated = self.images.update_state(image_id, status=body.status)
         return SaveResult(image=updated, boxes=self._boxes(image_id))
 
+    def has_outlines(self, image_id: int) -> bool:
+        return any(b.points for b in self._boxes(image_id))
+
+    def image_ids_with_outlines(self, project_id: int) -> set[int]:
+        return self.repo.image_ids_with_outlines(project_id)
+
     def boxes_by_image(self, project_id: int) -> dict[int, list[dict]]:
-        """All of the project's boxes as plain dicts (cls, x1..y2, source, conf), grouped by image id. Images
-        without boxes are left out."""
+        """All of the project's boxes as plain dicts (cls, x1..y2, source, conf, points), grouped by image id.
+        Images without boxes are left out."""
         grouped: dict[int, list[dict]] = {}
         for row in self.repo.list_for_project(project_id):
             grouped.setdefault(row.image_id, []).append(BoxOut.model_validate(row).model_dump())

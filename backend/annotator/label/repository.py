@@ -16,12 +16,18 @@ class LabelRepository:
         stmt = select(Box).where(Box.project_id == project_id).order_by(Box.image_id, Box.id)
         return list(self.session.scalars(stmt))
 
+    def image_ids_with_outlines(self, project_id: int) -> set[int]:
+        """The project's images that have at least one outlined object."""
+        stmt = select(Box.image_id).where(Box.project_id == project_id, Box.points.is_not(None)).distinct()
+        return set(self.session.scalars(stmt))
+
     def replace(self, project_id: int, image_id: int, boxes: list[dict], source: str) -> list[Box]:
-        """Swap the image's whole box set. Boxes are dicts with cls, x1, y1, x2, y2 and optional conf and source
-        (`source` is used for boxes that don't say)."""
+        """Swap the image's whole box set. Boxes are dicts with cls, x1, y1, x2, y2 and optional conf, source
+        (`source` is used for boxes that don't say) and points (the outline)."""
         self.session.execute(delete(Box).where(Box.image_id == image_id))
         rows = [Box(image_id=image_id, project_id=project_id, class_index=b["cls"], x1=b["x1"], y1=b["y1"],
-                    x2=b["x2"], y2=b["y2"], conf=b.get("conf"), source=b.get("source") or source) for b in boxes]
+                    x2=b["x2"], y2=b["y2"], conf=b.get("conf"), source=b.get("source") or source,
+                    points=b.get("points")) for b in boxes]
         self.session.add_all(rows)
         self.session.flush()
         return rows

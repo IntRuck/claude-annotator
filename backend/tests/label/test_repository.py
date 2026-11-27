@@ -86,3 +86,36 @@ def test_list_for_project_gives_only_that_projects_boxes_by_image_then_order(db_
     repo.replace(other_pid, elsewhere, [box(0)], source="ai")
     rows = repo.list_for_project(pid)
     assert [(b.image_id, b.class_index) for b in rows] == [(first, 0), (first, 1), (second, 1)]
+
+
+# ---------- outlines (V9) ----------
+TRIANGLE = [[0.1, 0.1], [0.5, 0.1], [0.3, 0.5]]
+
+
+def test_points_are_stored_and_null_means_a_plain_box(db_session, ids):
+    pid, image_id = ids
+    repo = LabelRepository(db_session)
+    repo.replace(pid, image_id, [box(0, points=TRIANGLE), box(1)], source="human")
+    assert [b.points for b in repo.list_for_image(image_id)] == [TRIANGLE, None]
+
+
+@pytest.mark.parametrize("dots", [2, 1001])
+def test_an_outline_needs_3_to_1000_dots(db_session, ids, dots):
+    pid, image_id = ids
+    points = [[0.1 + i * 0.0001, 0.2] for i in range(dots)]
+    with pytest.raises(IntegrityError):
+        LabelRepository(db_session).replace(pid, image_id, [box(0, points=points)], source="human")
+
+
+def test_image_ids_with_outlines_lists_only_images_that_have_one(db_session, ids):
+    pid, outlined = ids
+    images, repo = ImageRepository(db_session), LabelRepository(db_session)
+    plain = images.add(pid, file_name="b.jpg", stem="b", storage_path="p2", thumb_path="t2", width=100, height=50).id
+    other_pid = ProjectRepository(db_session).create("Other").id
+    ClassRepository(db_session).add(other_pid, "cup", "", "")
+    elsewhere = images.add(other_pid, file_name="c.jpg", stem="c", storage_path="p3", thumb_path="t3",
+                           width=100, height=50).id
+    repo.replace(pid, outlined, [box(0, points=TRIANGLE), box(1)], source="human")
+    repo.replace(pid, plain, [box(1)], source="human")
+    repo.replace(other_pid, elsewhere, [box(0, points=TRIANGLE)], source="human")
+    assert repo.image_ids_with_outlines(pid) == {outlined}

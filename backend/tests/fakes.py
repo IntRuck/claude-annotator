@@ -181,6 +181,10 @@ class FakeLabelRepository:
                 for image_id in sorted(self.boxes) if self.images.get(image_id).project_id == project_id
                 for b in self.boxes[image_id]]
 
+    def image_ids_with_outlines(self, project_id: int) -> set[int]:
+        return {image_id for image_id, boxes in self.boxes.items()
+                if self.images.get(image_id).project_id == project_id and any(b.get("points") for b in boxes)}
+
     def replace(self, project_id: int, image_id: int, boxes: list[dict], source: str):
         self.boxes[image_id] = [{**b, "source": b.get("source") or source} for b in boxes]
         self.images.get(image_id).box_count = len(boxes)

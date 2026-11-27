@@ -131,4 +131,27 @@ def test_boxes_by_image_groups_the_projects_boxes(world):
     grouped = service.boxes_by_image(1)
     assert list(grouped) == [1, 2]  # images without boxes (c.jpg) and other projects are left out
     assert [b["cls"] for b in grouped[2]] == [1, 0]
-    assert grouped[2][0] == pytest.approx({"cls": 1, "x1": 0.2, "y1": 0.2, "x2": 0.4, "y2": 0.4, "source": "ai", "conf": 0.9})
+    assert grouped[2][0] == pytest.approx({"cls": 1, "x1": 0.2, "y1": 0.2, "x2": 0.4, "y2": 0.4, "source": "ai", "conf": 0.9, "points": None})
+
+
+# ---------- outlines ----------
+TRIANGLE = [(0.2, 0.1), (0.6, 0.3), (0.3, 0.7)]
+
+
+def test_save_keeps_an_outline_and_works_out_its_box(world):
+    service, _, _ = world
+    out = service.save(1, SaveBoxes(boxes=[BoxIn(cls=0, x1=0, y1=0, x2=1, y2=1, points=TRIANGLE)],
+                                    status="edited", expected_updated_at=NOW))
+    [b] = out.boxes
+    assert b.points == TRIANGLE
+    assert (b.x1, b.y1, b.x2, b.y2) == pytest.approx((0.2, 0.1, 0.6, 0.7))
+
+
+def test_has_outlines_and_image_ids_with_outlines(world):
+    service, _, images = world
+    images.add(1, file_name="b.jpg", stem="b", storage_path="p", thumb_path="t", width=100, height=50)
+    service.replace_boxes(1, 1, [{"cls": 0, "x1": 0, "y1": 0, "x2": 1, "y2": 1, "points": TRIANGLE},
+                                 {"cls": 1, "x1": 0.1, "y1": 0.1, "x2": 0.5, "y2": 0.5}], source="human")
+    service.replace_boxes(1, 2, [{"cls": 1, "x1": 0.1, "y1": 0.1, "x2": 0.5, "y2": 0.5}], source="ai")
+    assert (service.has_outlines(1), service.has_outlines(2)) == (True, False)
+    assert service.image_ids_with_outlines(1) == {1}
