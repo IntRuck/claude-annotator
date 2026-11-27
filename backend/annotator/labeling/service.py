@@ -83,6 +83,11 @@ class LabelingService:
             self.activity.log(job.project_id, f"{image.file_name}: skipped, it was {image.status} by hand "
                                               "before its turn came", job_id=job.id, image_id=image.id)
             return None
+        if only_if and self.labels.has_outlines(image.id):
+            self.jobs.finish(job.id, "cancelled", "skipped: the image has outlines now")
+            self.activity.log(job.project_id, f"{image.file_name}: skipped, it got outlines before its turn came",
+                              job_id=job.id, image_id=image.id)
+            return None
         classes = self.classes.list_classes(job.project_id)
         indexes = [c.index for c in classes]
         return LabelTask(

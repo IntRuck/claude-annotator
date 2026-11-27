@@ -11,6 +11,8 @@ from annotator.image.service import ImageService
 from annotator.job.repository import JobRepository
 from annotator.job.schemas import JobCreate, JobSummary, QueueResult, StopResult
 from annotator.job.service import JobService
+from annotator.label.repository import LabelRepository
+from annotator.label.service import LabelService
 from annotator.project.repository import ProjectRepository
 from annotator.project.service import ProjectService
 from annotator.storage.dependencies import get_storage
@@ -22,9 +24,11 @@ router = APIRouter(prefix="/api/projects/{project_id}/jobs", tags=["jobs"])
 def get_job_service(session: Session = Depends(get_session),
                     storage: StorageService = Depends(get_storage)) -> JobService:
     projects = ProjectService(ProjectRepository(session))
-    return JobService(JobRepository(session), projects, ImageService(ImageRepository(session), storage, projects),
-                      ClassService(ClassRepository(session), projects),
-                      ActivityService(ActivityRepository(session), projects))
+    images = ImageService(ImageRepository(session), storage, projects)
+    classes = ClassService(ClassRepository(session), projects)
+    return JobService(JobRepository(session), projects, images, classes,
+                      ActivityService(ActivityRepository(session), projects),
+                      LabelService(LabelRepository(session), images, classes))
 
 
 @router.post("", response_model=QueueResult, status_code=202)

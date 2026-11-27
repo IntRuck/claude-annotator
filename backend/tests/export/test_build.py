@@ -14,7 +14,7 @@ import zipfile
 from types import SimpleNamespace
 
 from annotator.export import coco, yolo
-from annotator.export.pick import pick
+from annotator.export.pick import Picked, fully_outlined, pick
 
 CAN = {"cls": 0, "x1": 0.1, "y1": 0.1, "x2": 0.3, "y2": 0.3}
 BOTTLE = {"cls": 1, "x1": 0.5, "y1": 0.5, "x2": 0.9, "y2": 0.9}
@@ -124,3 +124,29 @@ def test_coco_image_ids_are_positions_in_the_whole_list_like_today():
     images, boxes = dataset(i1={"status": "unlabeled"})
     boxes.pop(1)
     assert [i["id"] for i in coco.build(CLASSES, pick(images, boxes))["images"]] == [2, 3]
+
+
+# ---------- outlines ----------
+TRI = [[0.1, 0.1], [0.5, 0.1], [0.5, 0.5]]
+OUTLINED = {"cls": 0, "x1": 0.1, "y1": 0.1, "x2": 0.5, "y2": 0.5, "points": TRI}
+
+
+def test_yolo_outline_lines_are_class_then_dots_with_6_decimals():
+    assert yolo.label_text([OUTLINED, {**OUTLINED, "cls": 1}], shape="outlines") == (
+        "0 0.100000 0.100000 0.500000 0.100000 0.500000 0.500000\n"
+        "1 0.100000 0.100000 0.500000 0.100000 0.500000 0.500000\n")
+    assert yolo.label_text([], shape="outlines") == ""
+
+
+def test_coco_outlines_add_segmentation_in_pixels_and_the_outline_area():
+    [a] = coco.build(CLASSES, [Picked(1, image(1, "a.jpg"), [OUTLINED])], shape="outlines")["annotations"]
+    assert a["segmentation"] == [[10.0, 5.0, 50.0, 5.0, 50.0, 25.0]]
+    assert a["area"] == 400.0
+    assert a["bbox"] == [10.0, 5.0, 40.0, 20.0]
+
+
+def test_fully_outlined_keeps_empty_images_and_counts_the_rest():
+    picked = [Picked(1, image(1, "a.jpg"), [OUTLINED]), Picked(2, image(2, "b.jpg"), []),
+              Picked(3, image(3, "c.jpg"), [OUTLINED, CAN])]
+    kept, left_out = fully_outlined(picked)
+    assert ([p.image.file_name for p in kept], left_out) == (["a.jpg", "b.jpg"], 1)

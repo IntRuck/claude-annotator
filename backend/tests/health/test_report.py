@@ -100,3 +100,18 @@ def test_an_empty_project():
     assert h["summary"] == {"images": 0, "labeled": 0, "boxes": 0, "avg_boxes_per_image": 0, "classes": 0,
                             "classes_with_data": 0, "imbalance_ratio": 0, "status": {}}
     assert h["classes"] == [] and sum(map(sum, h["heatmap"])) == 0
+
+
+# ---------- outlines ----------
+def test_partly_outlined_images_are_listed():
+    outlined = {**CAN, "points": [[0.1, 0.1], [0.3, 0.1], [0.2, 0.3]]}
+    plain = {**BOTTLE, "points": None}
+    boxes = {1: [outlined, dict(outlined)], 2: [outlined, plain], 3: [plain]}
+    issues = {i["key"]: i for i in build_report(CLASSES, [image(1), image(2), image(3)], boxes)["issues"]}
+    assert issues["partly_outlined"]["image_ids"] == [2]
+    assert issues["partly_outlined"]["label"] == "Partly outlined (some objects have no outline)"
+    assert list(issues)[-1] == "partly_outlined"
+
+
+def test_box_projects_do_not_see_the_outline_issue():
+    assert "partly_outlined" not in {i["key"] for i in report()["issues"]}

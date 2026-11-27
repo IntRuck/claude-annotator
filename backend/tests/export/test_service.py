@@ -31,7 +31,7 @@ def test_summary_follows_the_options(service):
 
 
 def test_summary_is_sent_with_camel_case_names(service):
-    assert service.summary(1).model_dump(by_alias=True) == {"images": 2, "boxes": 3, "train": 2, "val": 0}
+    assert service.summary(1).model_dump(by_alias=True) == {"images": 2, "boxes": 3, "train": 2, "val": 0, "leftOut": 0}
 
 
 def test_yolo_zip_has_the_originals_from_storage_and_their_labels(service):
@@ -68,3 +68,15 @@ def test_storage_down_while_zipping_is_a_clear_error(world):
     service, storage = world
     storage.fail_with = StorageError(0, "connection refused")
     assert error_of(lambda: zip_of(service)) == (502, "STORAGE_UNAVAILABLE")
+
+
+
+def test_outline_export_leaves_out_images_not_fully_outlined(service):
+    service.labels.replace_boxes(1, 2, [{"cls": 1, "x1": 0, "y1": 0, "x2": 1, "y2": 1,
+                                         "points": [[0.5, 0.5], [0.9, 0.5], [0.7, 0.9]]}], source="human")
+    s = service.summary(1, shape="outlines")
+    assert (s.images, s.boxes, s.left_out) == (1, 1, 1)  # b.jpg in; a.jpg (plain boxes) left out; c.jpg flagged
+    z = zip_of(service, shape="outlines")
+    assert z.read("dataset/labels/train/b.txt").decode() == "1 0.500000 0.500000 0.900000 0.500000 0.700000 0.900000\n"
+    assert [i["file_name"] for i in service.coco(1, shape="outlines")["images"]] == ["b.jpg"]
+    assert service.summary(1).left_out == 0  # Boxes: as today

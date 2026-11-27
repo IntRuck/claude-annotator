@@ -26,3 +26,11 @@ def pick(images: list, boxes_by_image: dict[int, list[dict]], *, only_reviewed: 
             continue
         picked.append(Picked(number, img, boxes))
     return picked
+
+
+def fully_outlined(picked: list[Picked]) -> tuple[list[Picked], int]:
+    """For an outline export: keep images whose every object has an outline (images without objects stay, as
+    background). A half-outlined image would teach the model that the other products are background.
+    Returns (kept, how many were left out)."""
+    kept = [p for p in picked if all(b.get("points") for b in p.boxes)]
+    return kept, len(picked) - len(kept)

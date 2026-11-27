@@ -20,6 +20,7 @@ ISSUES = (
     ("duplicates", f"Possible duplicate boxes (same class, IoU > {DUPLICATE_IOU})"),
     ("tiny", f"Tiny boxes (< {TINY_SIDE * 100:g}% width or height)"),
     ("crowded", f"Very crowded (> {CROWDED} boxes)"),
+    ("partly_outlined", "Partly outlined (some objects have no outline)"),  # only listed once outlines exist
 )
 
 
@@ -42,6 +43,7 @@ def build_report(classes: list[tuple[int, str]], images: list, boxes: dict[int, 
     heat = [[0] * grid for _ in range(grid)]
     issues: dict[str, list[int]] = {key: [] for key, _ in ISSUES}
     total_boxes, labelled = 0, 0
+    any_outlines = False
 
     for img in images:
         status_counts[img.status] = status_counts.get(img.status, 0) + 1
@@ -58,6 +60,10 @@ def build_report(classes: list[tuple[int, str]], images: list, boxes: dict[int, 
             issues["empty"].append(img.id)
         if len(image_boxes) > CROWDED:
             issues["crowded"].append(img.id)
+        outlined = sum(1 for b in image_boxes if b.get("points"))
+        any_outlines = any_outlines or outlined > 0
+        if 0 < outlined < len(image_boxes):
+            issues["partly_outlined"].append(img.id)
         total_boxes += len(image_boxes)
         found = set()
         for i, b in enumerate(image_boxes):
@@ -91,7 +97,7 @@ def build_report(classes: list[tuple[int, str]], images: list, boxes: dict[int, 
         "sizes": [{"key": key, "label": label, "count": sizes[key]} for key, label, _ in SIZES],
         "heatmap": heat,
         "issues": [{"key": key, "label": label, "count": len(issues[key]), "image_ids": issues[key]}
-                   for key, label in ISSUES],
+                   for key, label in ISSUES if key != "partly_outlined" or any_outlines],
         "low_count": low_count,
     }
 

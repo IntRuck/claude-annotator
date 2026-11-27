@@ -78,7 +78,7 @@ class World:
         self.worker_repo = FakeWorkerStatusRepository()
         self.engine_status = WorkerStatusService(self.worker_repo)
         self.job_repo = FakeJobRepository(pauses=self.worker_repo)
-        self.jobs = JobService(self.job_repo, self.projects, self.images, self.classes, self.activity)
+        self.jobs = JobService(self.job_repo, self.projects, self.images, self.classes, self.activity, self.labels)
         self.labeling = LabelingService(self.jobs, self.images, self.classes, self.labels, self.activity,
                                         self.engine_status)
         self.engine = FakeEngine([])

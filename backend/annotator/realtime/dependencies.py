@@ -12,6 +12,8 @@ from annotator.image.repository import ImageRepository
 from annotator.image.service import ImageService
 from annotator.job.repository import JobRepository
 from annotator.job.service import JobService
+from annotator.label.repository import LabelRepository
+from annotator.label.service import LabelService
 from annotator.project.repository import ProjectRepository
 from annotator.project.service import ProjectService
 from annotator.realtime.broadcaster import Broadcaster
@@ -35,7 +37,8 @@ def message_from_payload(raw: str) -> tuple[int, dict] | None:
         images = ImageService(ImageRepository(session), get_storage(), projects)
         classes = ClassService(ClassRepository(session), projects)
         activity = ActivityService(ActivityRepository(session), projects)
-        jobs = JobService(JobRepository(session), projects, images, classes, activity)
+        labels = LabelService(LabelRepository(session), images, classes)
+        jobs = JobService(JobRepository(session), projects, images, classes, activity, labels)
         engine_status = WorkerStatusService(WorkerStatusRepository(session))
         return RealtimeService(images, classes, jobs, activity, engine_status).to_message(raw)
 

@@ -10,12 +10,14 @@ from annotator.common.problem import ApiError
 from annotator.image.service import ImageService
 from annotator.job.schemas import JobCreate, JobKind, JobTarget
 from annotator.job.service import TARGETS, JobService
+from annotator.label.service import LabelService
 from annotator.project.service import ProjectService
 from tests.fakes import (
     FakeActivityRepository,
     FakeClassRepository,
     FakeImageRepository,
     FakeJobRepository,
+    FakeLabelRepository,
     FakeProjectRepository,
     FakeStorage,
 )
@@ -33,13 +35,19 @@ class World:
         self.activity_repo = FakeActivityRepository()
         self.activity = ActivityService(self.activity_repo, self.projects)
         self.jobs_repo = FakeJobRepository()
-        self.jobs = JobService(self.jobs_repo, self.projects, self.images, self.classes, self.activity)
+        self.labels = LabelService(FakeLabelRepository(self.image_repo), self.images, self.classes)
+        self.jobs = JobService(self.jobs_repo, self.projects, self.images, self.classes, self.activity,
+                               self.labels)
 
     def image(self, name, status="unlabeled", project_id=1):
         row = self.image_repo.add(project_id, file_name=name, stem=name, storage_path=name, thumb_path=name,
                                   width=10, height=10)
         row.status = status
         return row.id
+
+    def outline(self, image_id):
+        self.labels.replace_boxes(1, image_id, [{"cls": 0, "x1": 0, "y1": 0, "x2": 1, "y2": 1,
+                                                "points": [[0.2, 0.1], [0.6, 0.3], [0.3, 0.7]]}], source="import")
 
 
 @pytest.fixture
@@ -250,3 +258,19 @@ def test_requeue_puts_a_job_back_and_count_queued_counts_it(w):
 
     assert w.jobs_repo.get(job.id).status == "queued"
     assert w.jobs.count_queued(1, engine="gemini") == 2
+
+
+# ---------- outlines ----------
+@pytest.mark.parametrize(("kind", "target", "status"), [("refine", "auto", "auto"), ("annotate", "errors", "error")])
+def test_batch_targets_leave_out_images_with_outlines(w, kind, target, status):
+    a, b = w.image("a.jpg", status), w.image("b.jpg", status)
+    w.outline(a)
+    result = w.jobs.queue(1, JobCreate(kind=kind, target=target))
+    assert result.matched == 1
+    assert queued_images(w) == [(b, "queued")]
+
+
+def test_one_image_with_outlines_is_still_queued_on_purpose(w):
+    a = w.image("a.jpg", "auto")
+    w.outline(a)
+    assert w.jobs.queue(1, JobCreate(target="image", image_id=a)).queued == 1

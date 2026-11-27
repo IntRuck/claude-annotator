@@ -5,6 +5,7 @@ from annotator.engine.registry import ENGINES, UnknownEngineError, clean_options
 from annotator.image.service import ImageService
 from annotator.job.repository import JobRepository
 from annotator.job.schemas import JobCreate, JobOut, JobSummary, QueueResult, RunningJob, StopResult
+from annotator.label.service import LabelService
 from annotator.project.service import ProjectService
 
 # Statuses each target picks, per kind (today's buttons: Label all unlabeled, Find objects / Refine boxes with AI,
@@ -25,12 +26,13 @@ class JobService:
     """The AI work queue: one job per image. The API queues and stops; the worker claims and finishes."""
 
     def __init__(self, repo: JobRepository, projects: ProjectService, images: ImageService, classes: ClassService,
-                 activity: ActivityService):
+                 activity: ActivityService, labels: LabelService):
         self.repo = repo
         self.projects = projects
         self.images = images
         self.classes = classes
         self.activity = activity
+        self.labels = labels
 
     # ---------- API side ----------
     def queue(self, project_id: int, body: JobCreate) -> QueueResult:
@@ -64,7 +66,12 @@ class JobService:
 
     def _target_ids(self, project_id: int, body: JobCreate) -> list[int]:
         if body.target != "image":
-            return self.images.ids_with_status(project_id, TARGETS[body.kind][body.target])
+            ids = self.images.ids_with_status(project_id, TARGETS[body.kind][body.target])
+            if body.target in PROTECTED_TARGETS:
+                # The AI replaces every object, outlines too: batches never touch an outlined image.
+                outlined = self.labels.image_ids_with_outlines(project_id)
+                ids = [i for i in ids if i not in outlined]
+            return ids
         if body.image_id is None:
             raise ApiError(400, "IMAGE_REQUIRED", "Say which image to label (imageId).")
         image = self.images.get_image(body.image_id)

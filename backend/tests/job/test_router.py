@@ -7,6 +7,7 @@ from annotator.classes.service import ClassService
 from annotator.image.service import ImageService
 from annotator.job.router import get_job_service
 from annotator.job.service import JobService
+from annotator.label.service import LabelService
 from annotator.main import create_app
 from annotator.project.service import ProjectService
 from tests.fakes import (
@@ -14,6 +15,7 @@ from tests.fakes import (
     FakeClassRepository,
     FakeImageRepository,
     FakeJobRepository,
+    FakeLabelRepository,
     FakeProjectRepository,
     FakeStorage,
 )
@@ -30,7 +32,9 @@ def client():
     for name in ("a.jpg", "b.jpg"):
         image_repo.add(1, file_name=name, stem=name, storage_path=name, thumb_path=name, width=10, height=10)
     images = ImageService(image_repo, FakeStorage(), projects)
-    jobs = JobService(FakeJobRepository(), projects, images, classes, ActivityService(FakeActivityRepository(), projects))
+    labels = LabelService(FakeLabelRepository(image_repo), images, classes)
+    jobs = JobService(FakeJobRepository(), projects, images, classes, ActivityService(FakeActivityRepository(), projects),
+                      labels)
     app.dependency_overrides[get_job_service] = lambda: jobs
     return TestClient(app)
 

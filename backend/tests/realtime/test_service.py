@@ -9,6 +9,7 @@ from annotator.classes.service import ClassService
 from annotator.image.service import ImageService
 from annotator.job.schemas import JobCreate
 from annotator.job.service import JobService
+from annotator.label.service import LabelService
 from annotator.project.service import ProjectService
 from annotator.realtime.service import RealtimeService
 from annotator.worker_status.service import WorkerStatusService
@@ -18,6 +19,7 @@ from tests.fakes import (
     FakeClassRepository,
     FakeImageRepository,
     FakeJobRepository,
+    FakeLabelRepository,
     FakeProjectRepository,
     FakeStorage,
     FakeWorkerStatusRepository,
@@ -34,7 +36,8 @@ def service():
     classes.add_class(1, ClassCreate(name="can", description="red tin"))
     images = ImageService(images_repo, FakeStorage(), projects)
     activity = ActivityService(FakeActivityRepository(), projects)
-    jobs = JobService(FakeJobRepository(), projects, images, classes, activity)
+    jobs = JobService(FakeJobRepository(), projects, images, classes, activity,
+                      LabelService(FakeLabelRepository(images_repo), images, classes))
     jobs.queue(1, JobCreate(target="unlabeled"))      # one job, and one activity entry
     jobs.claim_next()
     engine_status = WorkerStatusService(FakeWorkerStatusRepository(), now=lambda: NOW)

@@ -190,3 +190,19 @@ def test_saving_a_refine_replaces_the_boxes(w):
     w.labeling.save(task, run_engine(task, lambda name, options: FakeEngine([([JAR, CAN], set())])))
     assert sorted(b["cls"] for b in w.label_repo.list_for_image(image_id)) == [0, 1]
     assert w.status(image_id) == "auto"
+
+
+def test_an_image_outlined_before_its_turn_is_skipped(w):
+    image_id = w.upload("a.jpg")
+    w.give_boxes(image_id, [{"cls": 0, "x1": 0.1, "y1": 0.1, "x2": 0.5, "y2": 0.5}])
+    w.queue(target="auto", kind="refine")
+    job = w.jobs.claim_next()
+    # An outline arrives (e.g. an import) and the image is still "auto", so only the outline check can skip it.
+    w.give_boxes(image_id, [{"cls": 0, "x1": 0, "y1": 0, "x2": 1, "y2": 1,
+                             "points": [[0.2, 0.1], [0.6, 0.3], [0.3, 0.7]]}])
+
+    assert w.labeling.load(job) is None
+
+    finished = w.job_repo.get(job.id)
+    assert (finished.status, finished.error) == ("cancelled", "skipped: the image has outlines now")
+    assert w.activity_repo.messages()[-1] == "a.jpg: skipped, it got outlines before its turn came"

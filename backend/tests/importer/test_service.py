@@ -148,3 +148,11 @@ def test_import_into_a_missing_project_is_404(world):
     with pytest.raises(ApiError) as e:
         service.import_dataset(9, [f("a.jpg", jpg())])
     assert e.value.code == "PROJECT_NOT_FOUND"
+
+
+def test_importing_a_segmentation_dataset_stores_outlines(world):
+    service, _, images, labels = world
+    service.import_dataset(1, [f("a.jpg", jpg()), f("a.txt", "0 0.2 0.1 0.6 0.3 0.3 0.7"), f("classes.txt", "can")])
+    [b] = labels.boxes[image_by_name(images, "a.jpg").id]
+    assert b["points"] == [[0.2, 0.1], [0.6, 0.3], [0.3, 0.7]]
+    assert (b["x1"], b["y2"]) == pytest.approx((0.2, 0.7))

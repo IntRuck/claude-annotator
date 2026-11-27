@@ -90,24 +90,34 @@ def parse_data_yaml_names(text: str) -> list[str]:
     return []
 
 
+def _yolo_line(parts: list[str]) -> dict:
+    """Counting the numbers after the class: 4 = box `cx cy w h`; 5 = box with a 5th number (e.g. a confidence)
+    ignored, as today; 6 or more and even = YOLO segmentation outline `x1 y1 x2 y2 ...`. Raises ValueError
+    otherwise."""
+    cls = int(float(parts[0]))
+    numbers = [float(p) for p in parts[1:]]
+    if cls < 0 or len(numbers) < 4 or (len(numbers) > 5 and len(numbers) % 2):
+        raise ValueError
+    if len(numbers) <= 5:
+        cx, cy, w, h = numbers[:4]
+        return {"cls": cls, "x1": cx - w / 2, "y1": cy - h / 2, "x2": cx + w / 2, "y2": cy + h / 2}
+    xs, ys = numbers[::2], numbers[1::2]
+    points = [[x, y] for x, y in zip(xs, ys, strict=True)]
+    return {"cls": cls, "x1": min(xs), "y1": min(ys), "x2": max(xs), "y2": max(ys), "points": points}
+
+
 def parse_yolo_label(text: str) -> tuple[list[dict], int]:
-    """YOLO lines (`class cx cy w h`, all 0-1) -> corner boxes, plus how many non-empty lines were unreadable."""
+    """YOLO lines (`class cx cy w h`, or `class x1 y1 x2 y2 ...` outlines, all 0-1) -> corner boxes (outlines keep
+    their dots in `points`), plus how many non-empty lines were unreadable."""
     boxes, bad = [], 0
     for line in text.splitlines():
         parts = line.split()
         if not parts:
             continue
         try:
-            if len(parts) < 5:
-                raise ValueError
-            cls = int(float(parts[0]))
-            cx, cy, w, h = map(float, parts[1:5])
-            if cls < 0:
-                raise ValueError
+            boxes.append(_yolo_line(parts))
         except ValueError:
             bad += 1
-            continue
-        boxes.append({"cls": cls, "x1": cx - w / 2, "y1": cy - h / 2, "x2": cx + w / 2, "y2": cy + h / 2})
     return boxes, bad
 
 

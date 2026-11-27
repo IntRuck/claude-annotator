@@ -95,3 +95,23 @@ def test_classify_sorts_a_dataset_folder_by_file_name():
         "shelf/classes.txt": "classes", "shelf/data.yaml": "yaml", "shelf/dataset.yml": "yaml",
         "shelf/readme.md": "ignored", "shelf/labels/_claude_tmp/x.jpg": "ignored",
     }
+
+
+# ---------- YOLO segmentation lines (outlines) ----------
+def test_yolo_segmentation_lines_become_outlines_with_their_box():
+    boxes, bad = parse_yolo_label("1 0.2 0.1 0.6 0.3 0.3 0.7")
+    assert bad == 0
+    [b] = boxes
+    assert b["points"] == [[0.2, 0.1], [0.6, 0.3], [0.3, 0.7]]
+    assert (b["cls"], b["x1"], b["y1"], b["x2"], b["y2"]) == pytest.approx((1, 0.2, 0.1, 0.6, 0.7))
+
+
+def test_a_box_line_with_a_confidence_is_still_a_box():
+    boxes, bad = parse_yolo_label("0 0.5 0.5 0.2 0.2 0.9")
+    assert bad == 0
+    assert "points" not in boxes[0]
+    assert boxes[0] == pytest.approx({"cls": 0, "x1": 0.4, "y1": 0.4, "x2": 0.6, "y2": 0.6})
+
+
+def test_an_odd_count_of_outline_numbers_is_unreadable():
+    assert parse_yolo_label("0 0.1 0.1 0.5 0.1 0.3 0.5 0.9") == ([], 1)

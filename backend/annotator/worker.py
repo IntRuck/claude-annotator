@@ -59,8 +59,8 @@ def build_services(session: Session, storage: StorageService) -> SimpleNamespace
     images = ImageService(ImageRepository(session), storage, projects)
     classes = ClassService(ClassRepository(session), projects)
     activity = ActivityService(ActivityRepository(session), projects)
-    jobs = JobService(JobRepository(session), projects, images, classes, activity)
     labels = LabelService(LabelRepository(session), images, classes)
+    jobs = JobService(JobRepository(session), projects, images, classes, activity, labels)
     engine_status = WorkerStatusService(WorkerStatusRepository(session))
     return SimpleNamespace(jobs=jobs, engine_status=engine_status,
                            labeling=LabelingService(jobs, images, classes, labels, activity, engine_status))
