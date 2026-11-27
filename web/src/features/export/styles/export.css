@@ -1,4 +1,6 @@
 .export-dialog .export-option { display: flex; align-items: center; gap: 8px; margin: 8px 0; font-size: var(--text-md); }
+.export-dialog .export-shape { display: flex; gap: 20px; padding-bottom: 6px; border-bottom: 1px solid var(--line); }
+.export-dialog .export-shape .export-option { font-weight: 600; }
 .export-dialog .muted { color: var(--muted); font-size: var(--text-sm); }
 .export-summary { margin: 12px 0 0; font-size: var(--text-md); font-weight: 600; }
 .export-actions { display: flex; gap: 8px; margin-top: 12px; }

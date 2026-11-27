@@ -114,7 +114,7 @@ Open **http://localhost:5173**.
    - **description** is for Gemini / Claude / Ollama: shape, colours, brand text, size, lid, and how it differs from look-alikes. This helps cheaper models the most
 
    Rows never move, so class IDs stay the same.
-3. **Add images**: **Upload images**, or **Import dataset** to bring in an existing YOLO set. Import takes the images plus their `.txt` labels, and the class list from `classes.txt` (one SKU per line as `name | detector prompt | description`, see `classes.example.txt`) or `data.yaml`. A `_annot_state.json` from the old Claude Annotator brings its statuses and flags along.
+3. **Add images**: **Upload images**, or **Import dataset** to bring in an existing YOLO set. Import takes the images plus their `.txt` labels, and the class list from `classes.txt` (one SKU per line as `name | detector prompt | description`, see `classes.example.txt`) or `data.yaml`. A `_annot_state.json` from the old Claude Annotator brings its statuses and flags along. YOLO segmentation labels (`class x1 y1 x2 y2 ...`) come in as outlines.
 4. **Label, check, fix**, then **Export**.
 
 Layout: **left** = this image (classes and boxes, AI buttons, activity log), **centre** = the editor, **right** = upload, Approve / Flag, filter and thumbnails. **Top**, split along the same three columns: where you are (← Projects, project name with ● Live next to it; hover the name for its full text), the AI (picker, options, batch runs), and project tools (Health check, Export, and **⋯** for Import dataset, SKUs, Edit project details and Light / Dark / Auto). **Edit SKUs** also sits under the class list.
@@ -139,18 +139,26 @@ Pick an AI in the top bar. Its options appear next to it:
 | Refine all | top | Runs Refine on every AI-labelled image you haven't approved |
 | ■ Stop | top | Cancels the waiting images; the one being labelled now finishes |
 | Resume | top (yellow banner) | Shown when an AI hit a usage limit; continues the paused images |
-| Health check | top | Boxes per class, imbalance, box sizes, where boxes sit, and issues. Click a class or issue to show just those images |
-| Export | top | YOLO zip or COCO JSON (see below) |
-| ✨ Find objects with AI | left | Labels the current image from scratch (replaces its boxes) |
+| Health check | top | Boxes per class, imbalance, box sizes, where boxes sit, and issues (with outlines: "Partly outlined"). Click a class or issue to show just those images |
+| Export | top | YOLO zip or COCO JSON, boxes or outlines (see below) |
+| ✨ Find objects with AI | left | Labels the current image from scratch (replaces its boxes, and its outlines: it asks first) |
 | Refine boxes with AI | left | The AI sees the current boxes drawn on the image and fixes loose, split, duplicate or missing ones |
 | ✓ Approve (R) | right | Marks the image as checked and moves to the next one |
 | 🚩 Flag (G) | right | Marks the image to come back to later (see below) |
 
-Classes tab (left): click a class to draw with it (or press 1-9). If a box is selected, it changes that box too. The number on the right is how many boxes of that class are on this image. Boxes tab: change a box's class, hide it or delete it.
+Classes tab (left): click a class to draw with it (or press 1-9). If a box is selected, it changes that box too. The number on the right is how many boxes of that class are on this image. Boxes tab: change a box's class, hide it or delete it. A box with an outline shows ⬠; ⌫ removes the outline and keeps the box.
 
 Display (on the editor): brightness, contrast, show / hide annotations and class names, fill boxes. These only change what you see, not the image.
 
 **Live updates**: open the project in two tabs, or let the AI run. Changes show up everywhere as they happen. Next to the project name it says **Live**, **Connecting…** or **Offline**.
+
+### Outlines (segmentation)
+An outline is a shape around a product made of dots joined by lines, for training outline (segmentation) models. Any box can have one; its box then follows the outline.
+- **Draw:** press **O** (or ⬠ on the editor), click round the product, then click the first dot or press **Enter**. Backspace removes the last dot, Esc drops the outline.
+- **Trace an AI box:** click the box first, then press O and click round it. The outline goes onto that box and it keeps its SKU.
+- **Fix:** select it and drag a dot. With the Box tool, double-click a line to add a dot, or a dot to remove it.
+- **The AI draws boxes, not outlines.** The batch buttons (Label all unlabeled, Refine all) skip images that have outlines. The ✨ buttons on one image ask first, because the AI replaces what's there.
+- The health check lists images where only some objects are outlined. Export **Outlines** leaves those out.
 
 ### 🚩 Flag images to check later
 For an image that looks wrong but you don't want to fix now. Click **🚩 Flag for later** on the right or press **G**, then pick a reason and add a note.
@@ -158,12 +166,13 @@ For an image that looks wrong but you don't want to fix now. Click **🚩 Flag f
 - Use the **🚩 Flagged** filter on the right to go through them later. Press G again to unflag once fixed.
 
 ### Export
-The dialog shows how many images and boxes will go in before you download.
+The dialog shows how many images and boxes (or outlines) will go in before you download.
 
 | Option | Meaning |
 |---|---|
 | Approved images only | Only export images you approved with R. Use this for training so unchecked AI labels stay out |
 | Leave out 🚩 flagged | Skip flagged images (on by default) |
+| Boxes / Outlines | **Boxes** (default) is the usual export. **Outlines** gives YOLO segmentation labels (`class x1 y1 x2 y2 ...`) and COCO with `segmentation`, from fully outlined images only; the count says how many were left out. Files: `yolo_seg_dataset.zip`, `annotations_coco_seg.json` |
 | YOLO zip | `images/train`, `images/val`, `labels/...` and `data.yaml` (10% val). This is what YOLO training wants |
 | COCO JSON | One JSON file for tools that use the COCO format (DETR, Detectron2, MMDetection). Not needed for YOLO |
 
@@ -175,6 +184,9 @@ Unsaved box edits are saved before the dialog opens, so they're in the download.
 | Drag on empty area | New box (uses the highlighted class) |
 | Click box, drag box / corner | Select, move / resize |
 | B / V, hold Space | Box tool / pan tool, pan while held |
+| O, then clicks, then Enter | Outline tool: dots round the object; Enter or the first dot closes it |
+| Backspace / Ctrl+Z / Esc while drawing | Remove the last dot / remove the last dot / drop the outline |
+| Drag a dot; double-click a line or dot | Move a dot; add or remove a dot (Box tool) |
 | 1-9 | Set class (of selected box, and for new boxes) |
 | Del | Delete selected box |
 | H | Show only the selected box |

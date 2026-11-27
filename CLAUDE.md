@@ -1,6 +1,6 @@
 # CLAUDE.md — claude-annotator
 
-AI-assisted image labelling for object detection (YOLO). This is its own git repository.
+AI-assisted image labelling for object detection and segmentation (YOLO): boxes, and outlines on boxes. This is its own git repository.
 
 **v2 lives on `feat/supabase-v2`.** It replaced the old single-file app (`app.py`, `backends.py`, `index.html`) and its characterisation tests, which were removed in the switch-over; the old app is still on `main` until this branch is merged. How to set up, run and use v2: [README.md](README.md).
 

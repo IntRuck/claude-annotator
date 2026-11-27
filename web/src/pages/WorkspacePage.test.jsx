@@ -6,7 +6,7 @@ import { ApiError } from '@/lib/apiClient';
 import { renderWithProviders } from '@/test/renderWithProviders';
 import { FakeEventSource } from '@/test/fakeEventSource';
 import { getProject, listProjects, updateProject } from '@/features/projects/api/projectsApi';
-import { listClasses } from '@/features/classes/api/classesApi';
+import { addClass, listClasses } from '@/features/classes/api/classesApi';
 import { listImages, setFlag } from '@/features/images/api/imagesApi';
 import { getBoxes, saveBoxes } from '@/features/editor/api/labelsApi';
 import { getEngineStatus, getJobSummary, queueJobs, resumeWorker } from '@/features/jobs/api/jobsApi';
@@ -141,6 +141,21 @@ describe('WorkspacePage', () => {
     renderPage();
     const dialog = await screen.findByRole('dialog', { name: 'SKUs to detect' });
     await userEvent.click(within(dialog).getByRole('button', { name: 'Close' }));
+    expect(screen.queryByRole('dialog', { name: 'SKUs to detect' })).not.toBeInTheDocument();
+  });
+
+  it('the first-time SKU manager stays open while you add SKUs, until you close it', async () => {
+    const THERMOS = { index: 0, name: 'thermos', detectorPrompt: '', description: '' };
+    listClasses.mockResolvedValue([]);
+    addClass.mockResolvedValue(THERMOS);
+    renderPage();
+    const dialog = await screen.findByRole('dialog', { name: 'SKUs to detect' });
+    listClasses.mockResolvedValue([THERMOS]);
+    await userEvent.type(within(dialog).getByRole('textbox', { name: 'New SKU name' }), 'thermos');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Add SKU' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: /thermos/ })).toBeInTheDocument()); // in the class list
+    expect(screen.getByRole('dialog', { name: 'SKUs to detect' })).toBeInTheDocument();
+    await userEvent.click(within(screen.getByRole('dialog', { name: 'SKUs to detect' })).getByRole('button', { name: 'Close' }));
     expect(screen.queryByRole('dialog', { name: 'SKUs to detect' })).not.toBeInTheDocument();
   });
 
@@ -335,6 +350,58 @@ describe('WorkspacePage', () => {
 
   describe('AI', () => {
     const GEMINI = { engine: 'gemini', options: { model: 'gemini-3.5-flash-lite', extra: '' } };
+
+    describe('on an image with outlines', () => {
+      const OUTLINED = { ...BOX, points: [[0.1, 0.1], [0.5, 0.1], [0.3, 0.5]] };
+      let confirm;
+      beforeEach(() => {
+        getBoxes.mockImplementation((id) => Promise.resolve({ boxes: id === 1 ? [OUTLINED] : [], updatedAt: `T${id}` }));
+        confirm = vi.spyOn(window, 'confirm');
+      });
+      afterEach(() => {
+        confirm.mockRestore();
+      });
+      const openOutlinedImage = async () => {
+        renderPage();
+        await waitForImage(1);
+        await userEvent.click(screen.getByRole('tab', { name: /^Boxes/ }));
+        await screen.findByRole('button', { name: 'Remove outline' });
+      };
+
+      it('Find objects with AI asks first and does nothing on No', async () => {
+        confirm.mockReturnValue(false);
+        await openOutlinedImage();
+        await userEvent.click(screen.getByRole('button', { name: /Find objects with AI/ }));
+        expect(confirm).toHaveBeenCalledWith('This image has 1 outline. Running the AI replaces it. Continue?');
+        expect(queueJobs).not.toHaveBeenCalled();
+      });
+
+      it('Find objects with AI queues the image on Yes', async () => {
+        confirm.mockReturnValue(true);
+        await openOutlinedImage();
+        await userEvent.click(screen.getByRole('button', { name: /Find objects with AI/ }));
+        await waitFor(() => expect(queueJobs).toHaveBeenCalledWith(4, { target: 'image', imageId: 1, ...GEMINI }));
+      });
+
+      it('Remove outline turns it back into a plain box, so the AI no longer asks', async () => {
+        await openOutlinedImage();
+        await userEvent.click(screen.getByRole('button', { name: 'Remove outline' }));
+        expect(screen.queryByRole('button', { name: 'Remove outline' })).not.toBeInTheDocument();
+        await userEvent.click(screen.getByRole('button', { name: /Find objects with AI/ }));
+        await waitFor(() => expect(queueJobs).toHaveBeenCalled());
+        expect(confirm).not.toHaveBeenCalled();
+      });
+    });
+
+    it('Find objects with AI on a plain image never asks', async () => {
+      const confirm = vi.spyOn(window, 'confirm');
+      renderPage();
+      await waitForImage(1);
+      await userEvent.click(screen.getByRole('button', { name: /Find objects with AI/ }));
+      await waitFor(() => expect(queueJobs).toHaveBeenCalled());
+      expect(confirm).not.toHaveBeenCalled();
+      confirm.mockRestore();
+    });
 
     it('Label all unlabeled queues the unlabeled images with the chosen engine', async () => {
       renderPage();

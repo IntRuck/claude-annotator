@@ -7,7 +7,7 @@ import {
   CUSTOM, ImageStrip, UploadImages, applyImageMessage, fileUrl, stepFrom, useImages, useSetFlag,
 } from '@/features/images';
 import { ImportDataset } from '@/features/importer';
-import { BoxPanel, Editor, ReviewPanel, useEditor } from '@/features/editor';
+import { BoxPanel, Editor, ReviewPanel, outlineCount, useEditor, withoutOutline } from '@/features/editor';
 import {
   EngineBar, PausedBanner, REFINE_NEEDS_VLM, applyJobMessage, applyWorkerMessage, engineInfo, engineOptions,
   noticeFor, useEngineSettings, useEngineStatus, useJobSummary, useQueueJobs, useResumeWorker, useStopJobs,
@@ -62,6 +62,7 @@ function Workspace({ projectId }) {
   const [exportOpen, setExportOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [introDismissed, setIntroDismissed] = useState(false);
+  const [introOpen, setIntroOpen] = useState(false);
   const [currentClass, setCurrentClass] = useState(0);
   const [chosenImageId, setChosenImageId] = useState(null);
   const [tab, setTab] = useState('classes');
@@ -74,9 +75,11 @@ function Workspace({ projectId }) {
   const editor = useEditor(current);
   const classList = classes.data ?? [];
 
-  // A project with no classes opens the SKU manager once (like today), unless you're importing a dataset.
+  // A project with no classes opens the SKU manager once (like today), unless you're importing a dataset. Once
+  // open, it stays open while you add SKUs, until you close it (it used to vanish when the first SKU was added).
   const noClassesYet = classes.isSuccess && classList.length === 0;
-  const showIntro = noClassesYet && !introDismissed && !importOpen;
+  if (noClassesYet && !introDismissed && !importOpen && !introOpen) setIntroOpen(true);
+  const showIntro = introOpen && !importOpen;
   const dialogOpen = skuOpen || importOpen || healthOpen || exportOpen || editOpen || showIntro;
 
   /** Unsaved changes are saved as "edited" before moving on (a conflict keeps you on the image). */
@@ -120,10 +123,16 @@ function Workspace({ projectId }) {
   };
 
   /** Ask the AI to label (or, with kind 'refine', review) `target` ('image' = the one on screen). Unsaved edits
-   * are saved first, like today; with no classes the SKU manager opens instead. */
+   * are saved first, like today; with no classes the SKU manager opens instead. The AI replaces every object, so
+   * on an image with outlines it asks first. */
   const runAi = async (target, kind = 'annotate') => {
     if (classList.length === 0) {
       setSkuOpen(true);
+      return;
+    }
+    const outlines = target === 'image' ? outlineCount(editor.state.boxes) : 0;
+    if (outlines > 0 && !window.confirm(`This image has ${outlines} outline${outlines === 1 ? '' : 's'}. `
+                                        + `Running the AI replaces ${outlines === 1 ? 'it' : 'them'}. Continue?`)) {
       return;
     }
     try {
@@ -204,7 +213,8 @@ function Workspace({ projectId }) {
             Export
           </button>
           <Menu label="More" title="Import, SKUs, project details, light or dark" align="end" className="bar-more" items={[
-            { label: 'Import dataset', onSelect: () => openDialog(setImportOpen) },
+            // Importing ends the first-time SKU manager; it comes back afterwards only if there are still no SKUs.
+            { label: 'Import dataset', onSelect: () => { setIntroOpen(false); openDialog(setImportOpen); } },
             { label: 'SKUs', onSelect: () => openDialog(setSkuOpen) },
             { label: 'Edit project details', onSelect: () => openDialog(setEditOpen) },
             { separator: true },
@@ -233,7 +243,8 @@ function Workspace({ projectId }) {
                     onSelect={(i) => editor.dispatch({ type: 'select', index: i })}
                     onChangeClass={(i, cls) => { editor.dispatch({ type: 'select', index: i }); editor.dispatch({ type: 'setClass', cls }); }}
                     onDelete={(i) => { editor.dispatch({ type: 'select', index: i }); editor.dispatch({ type: 'remove' }); setHidden(new Set()); }}
-                    onToggleHidden={(i) => setHidden((h) => { const n = new Set(h); if (n.has(i)) n.delete(i); else n.add(i); return n; })} />
+                    onToggleHidden={(i) => setHidden((h) => { const n = new Set(h); if (n.has(i)) n.delete(i); else n.add(i); return n; })}
+                    onRemoveOutline={(i) => editor.dispatch({ type: 'update', index: i, box: withoutOutline(editor.state.boxes[i]) })} />
         )}
         {current?.note && <p className="image-note">{current.note}</p>}
         <ErrorBanner error={queueJobs.error || stopJobs.error} />
@@ -279,7 +290,7 @@ function Workspace({ projectId }) {
       {healthOpen && <HealthDialog projectId={projectId} onClose={() => setHealthOpen(false)} onPickImages={showPicked} />}
       {(skuOpen || showIntro) && (
         <SkuManager projectId={projectId} intro={noClassesYet}
-                    onClose={() => { setSkuOpen(false); setIntroDismissed(true); }} />
+                    onClose={() => { setSkuOpen(false); setIntroOpen(false); setIntroDismissed(true); }} />
       )}
     </div>
   );
